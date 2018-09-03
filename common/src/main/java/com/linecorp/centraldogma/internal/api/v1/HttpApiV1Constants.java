@@ -21,6 +21,10 @@ package com.linecorp.centraldogma.internal.api.v1;
  */
 public final class HttpApiV1Constants {
 
+    // TODO(hyangtack) Replace the prefix with something like "/api/web/" or "/api/admin/".
+    // For legacy API
+    public static final String API_V0_PATH_PREFIX = "/api/v0/";
+
     public static final String API_V1_PATH_PREFIX = "/api/v1/";
 
     public static final String PROJECTS = "projects";

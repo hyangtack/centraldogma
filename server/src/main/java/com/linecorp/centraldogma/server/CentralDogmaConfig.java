@@ -24,6 +24,7 @@ import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_M
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_SESSION_CACHE_SPEC;
+import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_SESSION_CLEARANCE_CRON_SCHEDULE;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
@@ -60,7 +61,7 @@ import com.linecorp.centraldogma.internal.Jackson;
 
 import io.netty.util.NetUtil;
 
-final class CentralDogmaConfig {
+public final class CentralDogmaConfig {
 
     private final File dataDir;
 
@@ -117,34 +118,39 @@ final class CentralDogmaConfig {
     // Whether case-sensitive matching is performed when login names are compared
     private final boolean caseSensitiveLoginNames;
 
-    CentralDogmaConfig(@JsonProperty(value = "dataDir", required = true) File dataDir,
-                       @JsonProperty(value = "ports", required = true)
-                       @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
-                               List<ServerPort> ports,
-                       @JsonProperty("tls") @Nullable TlsConfig tls,
-                       @JsonProperty("numWorkers") @Nullable Integer numWorkers,
-                       @JsonProperty("maxNumConnections") @Nullable Integer maxNumConnections,
-                       @JsonProperty("requestTimeoutMillis") @Nullable Long requestTimeoutMillis,
-                       @JsonProperty("idleTimeoutMillis") @Nullable Long idleTimeoutMillis,
-                       @JsonProperty("maxFrameLength") @Nullable Integer maxFrameLength,
-                       @JsonProperty("numRepositoryWorkers") @Nullable Integer numRepositoryWorkers,
-                       @JsonProperty("cacheSpec") @Nullable String cacheSpec, // for backward compatibility
-                       @JsonProperty("repositoryCacheSpec") @Nullable String repositoryCacheSpec,
-                       @JsonProperty("sessionCacheSpec") @Nullable String sessionCacheSpec,
-                       @JsonProperty("gracefulShutdownTimeout") @Nullable
-                               GracefulShutdownTimeout gracefulShutdownTimeout,
-                       @JsonProperty("webAppEnabled") @Nullable Boolean webAppEnabled,
-                       @JsonProperty("webAppSessionTimeoutMillis") @Nullable Long webAppSessionTimeoutMillis,
-                       @JsonProperty("mirroringEnabled") @Nullable Boolean mirroringEnabled,
-                       @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
-                       @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
-                       @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror,
-                       @JsonProperty("replication") @Nullable ReplicationConfig replicationConfig,
-                       @JsonProperty("securityEnabled") @Nullable Boolean securityEnabled,
-                       @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
-                       @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
-                       @JsonProperty("administrators") @Nullable Set<String> administrators,
-                       @JsonProperty("caseSensitiveLoginNames") @Nullable Boolean caseSensitiveLoginNames) {
+    // A schedule for a cron job that clearing expired sessions
+    private final String sessionClearanceCronSchedule;
+
+    CentralDogmaConfig(
+            @JsonProperty(value = "dataDir", required = true) File dataDir,
+            @JsonProperty(value = "ports", required = true)
+            @JsonDeserialize(contentUsing = ServerPortDeserializer.class)
+                    List<ServerPort> ports,
+            @JsonProperty("tls") @Nullable TlsConfig tls,
+            @JsonProperty("numWorkers") @Nullable Integer numWorkers,
+            @JsonProperty("maxNumConnections") @Nullable Integer maxNumConnections,
+            @JsonProperty("requestTimeoutMillis") @Nullable Long requestTimeoutMillis,
+            @JsonProperty("idleTimeoutMillis") @Nullable Long idleTimeoutMillis,
+            @JsonProperty("maxFrameLength") @Nullable Integer maxFrameLength,
+            @JsonProperty("numRepositoryWorkers") @Nullable Integer numRepositoryWorkers,
+            @JsonProperty("cacheSpec") @Nullable String cacheSpec, // for backward compatibility
+            @JsonProperty("repositoryCacheSpec") @Nullable String repositoryCacheSpec,
+            @JsonProperty("sessionCacheSpec") @Nullable String sessionCacheSpec,
+            @JsonProperty("gracefulShutdownTimeout") @Nullable
+                    GracefulShutdownTimeout gracefulShutdownTimeout,
+            @JsonProperty("webAppEnabled") @Nullable Boolean webAppEnabled,
+            @JsonProperty("webAppSessionTimeoutMillis") @Nullable Long webAppSessionTimeoutMillis,
+            @JsonProperty("mirroringEnabled") @Nullable Boolean mirroringEnabled,
+            @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
+            @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
+            @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror,
+            @JsonProperty("replication") @Nullable ReplicationConfig replicationConfig,
+            @JsonProperty("securityEnabled") @Nullable Boolean securityEnabled,
+            @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
+            @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
+            @JsonProperty("administrators") @Nullable Set<String> administrators,
+            @JsonProperty("caseSensitiveLoginNames") @Nullable Boolean caseSensitiveLoginNames,
+            @JsonProperty("sessionClearanceCronSchedule") @Nullable String sessionClearanceCronSchedule) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -191,52 +197,54 @@ final class CentralDogmaConfig {
         this.administrators = administrators != null ? ImmutableSet.copyOf(administrators)
                                                      : ImmutableSet.of();
         this.caseSensitiveLoginNames = firstNonNull(caseSensitiveLoginNames, false);
+        this.sessionClearanceCronSchedule = firstNonNull(sessionClearanceCronSchedule,
+                                                         DEFAULT_SESSION_CLEARANCE_CRON_SCHEDULE);
     }
 
     @JsonProperty
-    File dataDir() {
+    public File dataDir() {
         return dataDir;
     }
 
     @JsonProperty
     @JsonSerialize(contentUsing = ServerPortSerializer.class)
-    List<ServerPort> ports() {
+    public List<ServerPort> ports() {
         return ports;
     }
 
     @Nullable
     @JsonProperty
-    TlsConfig tls() {
+    public TlsConfig tls() {
         return tls;
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<Integer> numWorkers() {
+    public Optional<Integer> numWorkers() {
         return Optional.ofNullable(numWorkers);
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<Integer> maxNumConnections() {
+    public Optional<Integer> maxNumConnections() {
         return Optional.ofNullable(maxNumConnections);
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<Long> requestTimeoutMillis() {
+    public Optional<Long> requestTimeoutMillis() {
         return Optional.ofNullable(requestTimeoutMillis);
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<Long> idleTimeoutMillis() {
+    public Optional<Long> idleTimeoutMillis() {
         return Optional.ofNullable(idleTimeoutMillis);
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<Integer> maxFrameLength() {
+    public Optional<Integer> maxFrameLength() {
         return Optional.ofNullable(maxFrameLength);
     }
 
@@ -252,85 +260,90 @@ final class CentralDogmaConfig {
      */
     @JsonProperty
     @Deprecated
-    String cacheSpec() {
+    public String cacheSpec() {
         return repositoryCacheSpec;
     }
 
     @JsonProperty
-    String repositoryCacheSpec() {
+    public String repositoryCacheSpec() {
         return repositoryCacheSpec;
     }
 
     @JsonProperty
-    String sessionCacheSpec() {
+    public String sessionCacheSpec() {
         return sessionCacheSpec;
     }
 
     @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
-    Optional<GracefulShutdownTimeout> gracefulShutdownTimeout() {
+    public Optional<GracefulShutdownTimeout> gracefulShutdownTimeout() {
         return Optional.ofNullable(gracefulShutdownTimeout);
     }
 
     @JsonProperty
-    boolean isWebAppEnabled() {
+    public boolean isWebAppEnabled() {
         return webAppEnabled;
     }
 
     @JsonProperty
-    long webAppSessionTimeoutMillis() {
+    public long webAppSessionTimeoutMillis() {
         return webAppSessionTimeoutMillis;
     }
 
     @JsonProperty
-    boolean isMirroringEnabled() {
+    public boolean isMirroringEnabled() {
         return mirroringEnabled;
     }
 
     @JsonProperty
-    int numMirroringThreads() {
+    public int numMirroringThreads() {
         return numMirroringThreads;
     }
 
     @JsonProperty
-    int maxNumFilesPerMirror() {
+    public int maxNumFilesPerMirror() {
         return maxNumFilesPerMirror;
     }
 
     @JsonProperty
-    long maxNumBytesPerMirror() {
+    public long maxNumBytesPerMirror() {
         return maxNumBytesPerMirror;
     }
 
     @JsonProperty("replication")
-    ReplicationConfig replicationConfig() {
+    public ReplicationConfig replicationConfig() {
         return replicationConfig;
     }
 
     @JsonProperty
-    boolean isSecurityEnabled() {
+    public boolean isSecurityEnabled() {
         return securityEnabled;
     }
 
     @JsonProperty
-    boolean isCsrfTokenRequiredForThrift() {
+    public boolean isCsrfTokenRequiredForThrift() {
         return csrfTokenRequiredForThrift;
     }
 
     @JsonProperty
     @Nullable
-    String accessLogFormat() {
+    public String accessLogFormat() {
         return accessLogFormat;
     }
 
     @JsonProperty
-    Set<String> administrators() {
+    public Set<String> administrators() {
         return administrators;
     }
 
     @JsonProperty
-    boolean caseSensitiveLoginNames() {
+    public boolean caseSensitiveLoginNames() {
         return caseSensitiveLoginNames;
+    }
+
+    @JsonProperty
+    public String sessionClearanceCronSchedule() {
+        return sessionClearanceCronSchedule;
     }
 
     @Override

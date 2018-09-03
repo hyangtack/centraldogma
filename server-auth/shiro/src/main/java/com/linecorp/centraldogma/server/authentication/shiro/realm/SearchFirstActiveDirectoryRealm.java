@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.support.shiro;
+package com.linecorp.centraldogma.server.authentication.shiro.realm;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;

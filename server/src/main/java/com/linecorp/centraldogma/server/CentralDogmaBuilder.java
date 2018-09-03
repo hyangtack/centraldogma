@@ -28,15 +28,15 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
-import org.apache.shiro.config.Ini;
-import org.apache.shiro.session.Session;
-
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
+import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
+import com.linecorp.centraldogma.server.authentication.AuthenticationProvider;
+import com.linecorp.centraldogma.server.authentication.AuthenticationProviderFactory;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 /**
@@ -69,6 +69,9 @@ public final class CentralDogmaBuilder {
             // Expire after the duration of session timeout.
             "maximumSize=8192,expireAfterWrite=" + (DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS / 1000) + 's';
 
+    // Schedule a job for deleting expired sessions at 0:30, 4:30, 8:30, 12:30, 16:30 and 20:30 for every day.
+    static final String DEFAULT_SESSION_CLEARANCE_CRON_SCHEDULE = "0 30 */4 ? * *";
+
     // Armeria properties
     // Note that we use nullable types here for optional properties.
     // When a property is null, the default value will be used implicitly.
@@ -97,10 +100,13 @@ public final class CentralDogmaBuilder {
     private GracefulShutdownTimeout gracefulShutdownTimeout;
     private ReplicationConfig replicationConfig = ReplicationConfig.NONE;
     @Nullable
-    private Ini securityConfig;
+    private AuthenticationProviderFactory authenticationProviderFactory;
+    @Nullable
+    private File securityConfigFile;
     private String accessLogFormat;
     private final ImmutableSet.Builder<String> administrators = new Builder<>();
     private boolean caseSensitiveLoginNames;
+    private String sessionClearanceCronSchedule = DEFAULT_SESSION_CLEARANCE_CRON_SCHEDULE;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -243,8 +249,8 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Sets the cache specification which determines the capacity and behavior of the cache for {@link Session}
-     * of the server. See {@link CaffeineSpec} for the syntax of the spec.
+     * Sets the cache specification which determines the capacity and behavior of the cache for
+     * {@link AuthenticatedSession} of the server. See {@link CaffeineSpec} for the syntax of the spec.
      * If unspecified, the default cache spec of {@value #DEFAULT_SESSION_CACHE_SPEC} is used.
      */
     public CentralDogmaBuilder sessionCacheSpec(String sessionCacheSpec) {
@@ -333,15 +339,21 @@ public final class CentralDogmaBuilder {
     }
 
     /**
-     * Configures the security using an {@link Ini} configuration for
-     * <a href="https://shiro.apache.org">Apache Shiro</a>. An {@link Ini} object would be created by
-     * {@link Ini#fromResourcePath(String)} with the INI file path.
+     * Sets a {@link AuthenticationProviderFactory} instance which is used to create a new
+     * {@link AuthenticationProvider}.
      */
-    public CentralDogmaBuilder securityConfig(Ini securityConfig) {
-        requireNonNull(securityConfig, "securityConfig");
-        final Ini iniCopy = new Ini();
-        iniCopy.putAll(securityConfig);
-        this.securityConfig = iniCopy;
+    public CentralDogmaBuilder authenticationProviderFactory(
+            AuthenticationProviderFactory authenticationProviderFactory) {
+        this.authenticationProviderFactory = requireNonNull(authenticationProviderFactory,
+                                                            "authenticationProviderFactory");
+        return this;
+    }
+
+    /**
+     * Sets a {@link File} instance which describes configurations for the authentication provider.
+     */
+    public CentralDogmaBuilder securityConfigFile(File securityConfigFile) {
+        this.securityConfigFile = requireNonNull(securityConfigFile, "securityConfigFile");
         return this;
     }
 
@@ -384,23 +396,34 @@ public final class CentralDogmaBuilder {
     }
 
     /**
+     * Sets a {@code cron} expression for scheduling a job which clears the expired sessions.
+     */
+    public CentralDogmaBuilder sessionClearanceCronSchedule(String sessionClearanceCronSchedule) {
+        this.sessionClearanceCronSchedule =
+                requireNonNull(sessionClearanceCronSchedule, "sessionClearanceCronSchedule");
+        return this;
+    }
+
+    /**
      * Returns a newly-created {@link CentralDogma} server.
      */
     public CentralDogma build() {
-        return new CentralDogma(buildConfig(), securityConfig);
+        return new CentralDogma(buildConfig(), securityConfigFile, authenticationProviderFactory);
     }
 
     private CentralDogmaConfig buildConfig() {
         final List<ServerPort> ports = !this.ports.isEmpty() ? this.ports
                                                              : Collections.singletonList(DEFAULT_PORT);
-
+        final boolean securityEnabled = securityConfigFile != null ||
+                                        authenticationProviderFactory != null;
         return new CentralDogmaConfig(dataDir, ports, tls, numWorkers, maxNumConnections,
                                       requestTimeoutMillis, idleTimeoutMillis, maxFrameLength,
                                       numRepositoryWorkers, null, repositoryCacheSpec,
                                       sessionCacheSpec, gracefulShutdownTimeout, webAppEnabled,
                                       webAppSessionTimeoutMillis, mirroringEnabled, numMirroringThreads,
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
-                                      securityConfig != null, null,
-                                      accessLogFormat, administrators.build(), caseSensitiveLoginNames);
+                                      securityEnabled, null,
+                                      accessLogFormat, administrators.build(), caseSensitiveLoginNames,
+                                      sessionClearanceCronSchedule);
     }
 }

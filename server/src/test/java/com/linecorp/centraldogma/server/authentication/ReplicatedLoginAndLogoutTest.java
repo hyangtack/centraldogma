@@ -14,16 +14,15 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.admin.authentication;
+package com.linecorp.centraldogma.server.authentication;
 
-import static com.linecorp.centraldogma.server.internal.admin.authentication.LoginAndLogoutTest.PASSWORD;
-import static com.linecorp.centraldogma.server.internal.admin.authentication.LoginAndLogoutTest.USERNAME;
-import static com.linecorp.centraldogma.server.internal.admin.authentication.LoginAndLogoutTest.WRONG_PASSWORD;
-import static com.linecorp.centraldogma.server.internal.admin.authentication.LoginAndLogoutTest.WRONG_SESSION_ID;
-import static com.linecorp.centraldogma.server.internal.admin.authentication.LoginAndLogoutTest.login;
-import static com.linecorp.centraldogma.server.internal.admin.authentication.LoginAndLogoutTest.logout;
-import static com.linecorp.centraldogma.server.internal.admin.authentication.LoginAndLogoutTest.newSecurityConfig;
-import static com.linecorp.centraldogma.server.internal.admin.authentication.LoginAndLogoutTest.usersMe;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.PASSWORD;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.USERNAME;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.WRONG_PASSWORD;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.WRONG_SESSION_ID;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.login;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.logout;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.usersMe;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -59,6 +58,7 @@ import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.server.GracefulShutdownTimeout;
 import com.linecorp.centraldogma.server.ZooKeeperAddress;
 import com.linecorp.centraldogma.server.ZooKeeperReplicationConfig;
+import com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationProviderFactory;
 
 public class ReplicatedLoginAndLogoutTest {
 
@@ -92,9 +92,11 @@ public class ReplicatedLoginAndLogoutTest {
                 1, new ZooKeeperAddress("127.0.0.1", zkQuorumPort1, zkElectionPort1, zkClientPort1),
                 2, new ZooKeeperAddress("127.0.0.1", zkQuorumPort2, zkElectionPort2, zkClientPort2));
 
+        final AuthenticationProviderFactory factory = new TestAuthenticationProviderFactory();
+
         replica1 = new CentralDogmaBuilder(tempDir.newFolder())
                 .port(port1, SessionProtocol.HTTP)
-                .securityConfig(newSecurityConfig())
+                .authenticationProviderFactory(factory)
                 .webAppEnabled(true)
                 .mirroringEnabled(false)
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
@@ -103,7 +105,7 @@ public class ReplicatedLoginAndLogoutTest {
 
         replica2 = new CentralDogmaBuilder(tempDir.newFolder())
                 .port(port2, SessionProtocol.HTTP)
-                .securityConfig(newSecurityConfig())
+                .authenticationProviderFactory(factory)
                 .webAppEnabled(true)
                 .mirroringEnabled(false)
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))

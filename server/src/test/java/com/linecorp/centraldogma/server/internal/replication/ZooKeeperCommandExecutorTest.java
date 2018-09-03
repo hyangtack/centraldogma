@@ -261,6 +261,7 @@ public class ZooKeeperCommandExecutorTest {
         Replica(InstanceSpec spec, Map<Integer, ZooKeeperAddress> servers,
                 Function<Command<?>, CompletableFuture<?>> delegate) throws Exception {
             this.delegate = delegate;
+
             dataDir = spec.getDataDirectory();
 
             final int id = spec.getServerId();
@@ -281,7 +282,7 @@ public class ZooKeeperCommandExecutorTest {
 
                 @Override
                 @SuppressWarnings("unchecked")
-                protected <T> CompletableFuture<T> doExecute(int replicaId, Command<T> command) {
+                protected <T> CompletableFuture<T> doExecute(Command<T> command) {
                     return (CompletableFuture<T>) delegate.apply(command);
                 }
             }, null, null);

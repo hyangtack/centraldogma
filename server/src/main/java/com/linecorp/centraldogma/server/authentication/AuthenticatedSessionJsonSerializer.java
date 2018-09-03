@@ -13,32 +13,30 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.support.shiro;
+package com.linecorp.centraldogma.server.authentication;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.Base64;
 
-import org.apache.shiro.session.mgt.SimpleSession;
-
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 /**
- * Serializes a {@link SimpleSession} into a base64-encoded string.
+ * Serializes a {@link AuthenticatedSession} into a base64-encoded string.
  */
-public final class SimpleSessionJsonSerializer extends StdSerializer<SimpleSession> {
+public final class AuthenticatedSessionJsonSerializer extends StdSerializer<AuthenticatedSession> {
 
     private static final long serialVersionUID = -8209099521255193022L;
 
-    public SimpleSessionJsonSerializer() {
-        super(SimpleSession.class);
+    public AuthenticatedSessionJsonSerializer() {
+        super(AuthenticatedSession.class);
     }
 
     @Override
-    public void serialize(SimpleSession value, JsonGenerator gen, SerializerProvider provider)
+    public void serialize(AuthenticatedSession value, JsonGenerator gen, SerializerProvider provider)
             throws IOException {
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);

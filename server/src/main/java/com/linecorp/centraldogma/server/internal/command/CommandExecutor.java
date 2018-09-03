@@ -29,6 +29,4 @@ public interface CommandExecutor {
     CompletableFuture<Void> stop();
 
     <T> CompletableFuture<T> execute(Command<T> command);
-
-    <T> CompletableFuture<T> execute(int replicaId, Command<T> command);
 }

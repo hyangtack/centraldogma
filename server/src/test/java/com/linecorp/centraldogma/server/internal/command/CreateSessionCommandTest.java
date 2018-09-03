@@ -18,31 +18,35 @@ package com.linecorp.centraldogma.server.internal.command;
 
 import static com.linecorp.centraldogma.testing.internal.TestUtil.assertJsonConversion;
 
-import java.util.Date;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
-import org.apache.shiro.session.mgt.SimpleSession;
 import org.junit.Test;
 
 import com.linecorp.centraldogma.common.Author;
+import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
 
 public class CreateSessionCommandTest {
 
-    private static final SimpleSession EMPTY_SESSION = new SimpleSession();
-
-    static {
-        final Date epoch = new Date(0);
-        EMPTY_SESSION.setStartTimestamp(epoch);
-        EMPTY_SESSION.setLastAccessTime(epoch);
-    }
-
-    private static final String ENCODED_EMPTY_SESSION =
-            "rO0ABXNyACpvcmcuYXBhY2hlLnNoaXJvLnNlc3Npb24ubWd0LlNpbXBsZVNlc3Npb26dHKG41YxibgMAAHhw" +
-            "dwIAGnNyAA5qYXZhLnV0aWwuRGF0ZWhqgQFLWXQZAwAAeHB3CAAAAAAAAAAAeHEAfgADdwgAAAAAABt3QHg=";
-
     @Test
-    public void testJsonConversion() {
+    public void testJsonConversion() throws Exception {
+        final AuthenticatedSession session =
+                new AuthenticatedSession("session-id-12345",
+                                         "foo",
+                                         Instant.EPOCH,
+                                         Instant.EPOCH.plus(1, ChronoUnit.MINUTES),
+                                         "serializable_raw_session_object");
+
+        final String encodedSession =
+                "rO0ABXNyAERjb20ubGluZWNvcnAuY2VudHJhbGRvZ21hLnNlcnZlci5hdXRoZW50aWNhdGlvbi5BdXRo" +
+                "ZW50aWNhdGVkU2Vzc2lvbjsGPBR+rwSBAgAFTAAMY3JlYXRpb25UaW1ldAATTGphdmEvdGltZS9JbnN0" +
+                "YW50O0wADmV4cGlyYXRpb25UaW1lcQB+AAFMAAJpZHQAEkxqYXZhL2xhbmcvU3RyaW5nO0wACnJhd1Nl" +
+                "c3Npb250ABZMamF2YS9pby9TZXJpYWxpemFibGU7TAAIdXNlcm5hbWVxAH4AAnhwc3IADWphdmEudGlt" +
+                "ZS5TZXKVXYS6GyJIsgwAAHhwdw0CAAAAAAAAAAAAAAAAeHNxAH4ABXcNAgAAAAAAAAA8AAAAAHh0ABBz" +
+                "ZXNzaW9uLWlkLTEyMzQ1dAAfc2VyaWFsaXphYmxlX3Jhd19zZXNzaW9uX29iamVjdHQAA2Zvbw==";
+
         assertJsonConversion(
-                new CreateSessionCommand(1234L, new Author("foo", "bar@baz.com"), EMPTY_SESSION),
+                new CreateSessionCommand(1234L, new Author("foo", "bar@baz.com"), session),
                 Command.class,
                 '{' +
                 "  \"type\": \"CREATE_SESSIONS\"," +
@@ -51,7 +55,7 @@ public class CreateSessionCommandTest {
                 "    \"name\": \"foo\"," +
                 "    \"email\": \"bar@baz.com\"" +
                 "  }," +
-                "  \"session\": \"" + ENCODED_EMPTY_SESSION + '"' +
+                "  \"session\": \"" + encodedSession + '"' +
                 '}');
     }
 }

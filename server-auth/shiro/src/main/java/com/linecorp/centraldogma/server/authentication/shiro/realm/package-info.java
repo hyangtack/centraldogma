@@ -18,6 +18,6 @@
  * which may be useful for configuring security.
  */
 @NonNullByDefault
-package com.linecorp.centraldogma.server.support.shiro;
+package com.linecorp.centraldogma.server.authentication.shiro.realm;
 
 import com.linecorp.centraldogma.common.util.NonNullByDefault;

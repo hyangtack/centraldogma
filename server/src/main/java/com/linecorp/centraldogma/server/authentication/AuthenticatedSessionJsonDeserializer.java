@@ -13,38 +13,36 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.support.shiro;
+package com.linecorp.centraldogma.server.authentication;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Base64;
 
-import org.apache.shiro.session.mgt.SimpleSession;
-
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 /**
- * Deserialized a {@link SimpleSession} from a base64-encoded string.
+ * Deserialized a {@link AuthenticatedSession} from a base64-encoded string.
  */
-public final class SimpleSessionJsonDeserializer extends StdDeserializer<SimpleSession> {
+public final class AuthenticatedSessionJsonDeserializer extends StdDeserializer<AuthenticatedSession> {
 
     private static final long serialVersionUID = 6711539370106208875L;
 
-    public SimpleSessionJsonDeserializer() {
-        super(SimpleSession.class);
+    public AuthenticatedSessionJsonDeserializer() {
+        super(AuthenticatedSession.class);
     }
 
     @Override
-    public SimpleSession deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+    public AuthenticatedSession deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         try (ByteArrayInputStream bais =
                      new ByteArrayInputStream(Base64.getDecoder().decode(p.readValueAs(String.class)));
              ObjectInputStream ois = new ObjectInputStream(bais)) {
-            return (SimpleSession) ois.readObject();
+            return (AuthenticatedSession) ois.readObject();
         } catch (ClassNotFoundException e) {
-            ctxt.reportInputMismatch(SimpleSession.class, "failed to deserialize a session: " + e);
+            ctxt.reportInputMismatch(AuthenticatedSession.class, "failed to deserialize a session: " + e);
             throw new Error(); // Should never reach here
         }
     }

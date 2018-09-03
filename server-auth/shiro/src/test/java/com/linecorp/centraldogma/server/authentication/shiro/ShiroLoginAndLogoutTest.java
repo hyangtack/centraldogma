@@ -14,85 +14,60 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.internal.admin.authentication;
+package com.linecorp.centraldogma.server.authentication.shiro;
 
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.PASSWORD;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.USERNAME;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.WRONG_PASSWORD;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.WRONG_SESSION_ID;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.login;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.loginWithBasicAuth;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.logout;
+import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.usersMe;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.Base64.Encoder;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.shiro.config.Ini;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
-import com.linecorp.armeria.common.HttpHeaderNames;
-import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpStatus;
-import com.linecorp.armeria.common.MediaType;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
-public class LoginAndLogoutTest {
+public class ShiroLoginAndLogoutTest {
 
-    static final String USERNAME = "foo";
-    static final String PASSWORD = "bar";
-    static final String WRONG_PASSWORD = "baz";
-    static final String WRONG_SESSION_ID = "00000000-0000-0000-0000-000000000000";
+    @ClassRule
+    public static TemporaryFolder folder = new TemporaryFolder();
 
-    private static final Encoder encoder = Base64.getEncoder();
-
-    static Ini newSecurityConfig() {
-        final Ini ini = new Ini();
-        ini.addSection("users").put(USERNAME, PASSWORD);
-        return ini;
-    }
-
-    static AggregatedHttpMessage login(HttpClient client, String username, String password) {
-        return client.execute(
-                HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
-                               HttpHeaderNames.PATH, "/api/v1/login",
-                               HttpHeaderNames.CONTENT_TYPE, MediaType.FORM_DATA.toString()),
-                "grant_type=password&username=" + username + "&password=" + password,
-                StandardCharsets.US_ASCII).aggregate().join();
-    }
-
-    private static AggregatedHttpMessage loginWithBasicAuth(HttpClient client) {
-        return client.execute(
-                HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
-                               HttpHeaderNames.PATH, "/api/v1/login",
-                               HttpHeaderNames.AUTHORIZATION, "basic " + encoder.encodeToString(
-                                       (USERNAME + ':' + PASSWORD).getBytes(StandardCharsets.US_ASCII))))
-                   .aggregate().join();
-    }
-
-    static AggregatedHttpMessage logout(HttpClient client, String sessionId) {
-        return client.execute(
-                HttpHeaders.of(HttpHeaderNames.METHOD, "POST",
-                               HttpHeaderNames.PATH, "/api/v1/logout",
-                               HttpHeaderNames.AUTHORIZATION,
-                               "bearer " + sessionId)).aggregate().join();
-    }
-
-    static AggregatedHttpMessage usersMe(HttpClient client, String sessionId) {
-        return client.execute(
-                HttpHeaders.of(HttpHeaderNames.METHOD, "GET",
-                               HttpHeaderNames.PATH, "/api/v0/users/me",
-                               HttpHeaderNames.AUTHORIZATION,
-                               "bearer " + sessionId)).aggregate().join();
+    static File newSecurityConfigFile() {
+        try {
+            final File file = folder.newFile();
+            final FileWriter writer = new FileWriter(file);
+            writer.write("[users]\n" + USERNAME + " = " + PASSWORD + '\n');
+            writer.flush();
+            writer.close();
+            return file;
+        } catch (IOException e) {
+            throw new Error(e);
+        }
     }
 
     @Rule
     public final CentralDogmaRule rule = new CentralDogmaRule() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.securityConfig(newSecurityConfig());
+            builder.securityConfigFile(newSecurityConfigFile());
             builder.webAppEnabled(true);
         }
     };
@@ -115,6 +90,7 @@ public class LoginAndLogoutTest {
         // Ensure authorization works.
         final AccessToken accessToken = Jackson.readValue(loginRes.content().toStringUtf8(), AccessToken.class);
         final String sessionId = accessToken.accessToken();
+
         assertThat(usersMe(client, sessionId).status()).isEqualTo(HttpStatus.OK);
 
         // Log out.
@@ -135,7 +111,7 @@ public class LoginAndLogoutTest {
 
     @Test
     public void basicAuth() throws Exception {
-        loginAndLogout(loginWithBasicAuth(client));
+        loginAndLogout(loginWithBasicAuth(client, USERNAME, PASSWORD));
     }
 
     @Test
