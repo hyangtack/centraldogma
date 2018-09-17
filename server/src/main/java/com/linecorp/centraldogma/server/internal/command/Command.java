@@ -32,7 +32,7 @@ import com.linecorp.centraldogma.common.Change;
 import com.linecorp.centraldogma.common.Markup;
 import com.linecorp.centraldogma.common.Query;
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({

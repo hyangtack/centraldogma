@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 LINE Corporation
+ * Copyright 2017 LINE Corporation
  *
  * LINE Corporation licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
@@ -14,9 +14,10 @@
  * under the License.
  */
 /**
- * An abstraction layer for Central Dogma authentication.
+ * Extra <a href="https://shiro.apache.org/">Apache Shiro</a> {@link org.apache.shiro.realm.Realm}s
+ * which may be useful for configuring security.
  */
 @NonNullByDefault
-package com.linecorp.centraldogma.server.authentication;
+package com.linecorp.centraldogma.server.auth.shiro.realm;
 
 import com.linecorp.centraldogma.common.util.NonNullByDefault;

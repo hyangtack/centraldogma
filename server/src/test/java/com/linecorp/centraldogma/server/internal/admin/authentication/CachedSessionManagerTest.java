@@ -31,7 +31,7 @@ import org.junit.Test;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
 
 public class CachedSessionManagerTest {
 

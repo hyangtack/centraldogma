@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.authentication;
+package com.linecorp.centraldogma.server.auth;
 
 /**
  * A {@link RuntimeException} raised while performing authentication.

@@ -24,7 +24,7 @@ import java.time.temporal.ChronoUnit;
 import org.junit.Test;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
 
 public class CreateSessionCommandTest {
 
@@ -38,12 +38,12 @@ public class CreateSessionCommandTest {
                                          "serializable_raw_session_object");
 
         final String encodedSession =
-                "rO0ABXNyAERjb20ubGluZWNvcnAuY2VudHJhbGRvZ21hLnNlcnZlci5hdXRoZW50aWNhdGlvbi5BdXRo" +
-                "ZW50aWNhdGVkU2Vzc2lvbjsGPBR+rwSBAgAFTAAMY3JlYXRpb25UaW1ldAATTGphdmEvdGltZS9JbnN0" +
-                "YW50O0wADmV4cGlyYXRpb25UaW1lcQB+AAFMAAJpZHQAEkxqYXZhL2xhbmcvU3RyaW5nO0wACnJhd1Nl" +
-                "c3Npb250ABZMamF2YS9pby9TZXJpYWxpemFibGU7TAAIdXNlcm5hbWVxAH4AAnhwc3IADWphdmEudGlt" +
-                "ZS5TZXKVXYS6GyJIsgwAAHhwdw0CAAAAAAAAAAAAAAAAeHNxAH4ABXcNAgAAAAAAAAA8AAAAAHh0ABBz" +
-                "ZXNzaW9uLWlkLTEyMzQ1dAAfc2VyaWFsaXphYmxlX3Jhd19zZXNzaW9uX29iamVjdHQAA2Zvbw==";
+                "rO0ABXNyADpjb20ubGluZWNvcnAuY2VudHJhbGRvZ21hLnNlcnZlci5hdXRoLkF1dGhlbnRpY2F0ZWRT" +
+                "ZXNzaW9uOwY8FH6vBIECAAVMAAxjcmVhdGlvblRpbWV0ABNMamF2YS90aW1lL0luc3RhbnQ7TAAOZXhw" +
+                "aXJhdGlvblRpbWVxAH4AAUwAAmlkdAASTGphdmEvbGFuZy9TdHJpbmc7TAAKcmF3U2Vzc2lvbnQAFkxq" +
+                "YXZhL2lvL1NlcmlhbGl6YWJsZTtMAAh1c2VybmFtZXEAfgACeHBzcgANamF2YS50aW1lLlNlcpVdhLob" +
+                "IkiyDAAAeHB3DQIAAAAAAAAAAAAAAAB4c3EAfgAFdw0CAAAAAAAAADwAAAAAeHQAEHNlc3Npb24taWQt" +
+                "MTIzNDV0AB9zZXJpYWxpemFibGVfcmF3X3Nlc3Npb25fb2JqZWN0dAADZm9v";
 
         assertJsonConversion(
                 new CreateSessionCommand(1234L, new Author("foo", "bar@baz.com"), session),

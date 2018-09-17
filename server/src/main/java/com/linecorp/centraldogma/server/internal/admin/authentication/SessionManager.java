@@ -17,7 +17,7 @@ package com.linecorp.centraldogma.server.internal.admin.authentication;
 
 import java.util.concurrent.CompletableFuture;
 
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
 
 /**
  * An interface for session management.

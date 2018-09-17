@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.authentication.shiro;
+package com.linecorp.centraldogma.server.auth.shiro;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -22,7 +22,7 @@ import java.util.ServiceLoader;
 
 import org.junit.Test;
 
-import com.linecorp.centraldogma.server.authentication.AuthenticationProviderFactory;
+import com.linecorp.centraldogma.server.auth.AuthenticationProviderFactory;
 
 public class ShiroAuthenticationProviderFactoryTest {
 

@@ -24,7 +24,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
 
 public class FileBasedSessionManagerTest {
 

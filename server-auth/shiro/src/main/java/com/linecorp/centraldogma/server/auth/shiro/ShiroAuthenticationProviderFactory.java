@@ -13,15 +13,15 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.authentication.shiro;
+package com.linecorp.centraldogma.server.auth.shiro;
 
 import static java.util.Objects.requireNonNull;
 
 import org.apache.shiro.config.Ini;
 
-import com.linecorp.centraldogma.server.authentication.AuthenticationProvider;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProviderFactory;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProviderParameters;
+import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
+import com.linecorp.centraldogma.server.auth.AuthenticationProviderFactory;
+import com.linecorp.centraldogma.server.auth.AuthenticationProviderParameters;
 
 /**
  * A factory for creating an Apache Shiro based {@link AuthenticationProvider}.

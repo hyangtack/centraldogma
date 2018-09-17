@@ -26,9 +26,9 @@ import java.util.concurrent.CompletableFuture;
 
 import org.junit.Test;
 
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
 
-public class FilteredActiveSessionManagerTest {
+public class ExpiredSessionDeletingSessionManagerTest {
 
     @Test
     public void shouldReturnNonNull() {
@@ -36,7 +36,7 @@ public class FilteredActiveSessionManagerTest {
         final SessionManager delegate = mock(SessionManager.class);
         when(delegate.get(any())).thenReturn(CompletableFuture.completedFuture(expiredAfterOneHour));
 
-        final FilteredActiveSessionManager manager = new FilteredActiveSessionManager(delegate);
+        final ExpiredSessionDeletingSessionManager manager = new ExpiredSessionDeletingSessionManager(delegate);
         assertThat(manager.get("id").join()).isNotNull()
                                             .isEqualTo(expiredAfterOneHour);
     }
@@ -47,7 +47,7 @@ public class FilteredActiveSessionManagerTest {
         final SessionManager delegate = mock(SessionManager.class);
         when(delegate.get(any())).thenReturn(CompletableFuture.completedFuture(expiredSession));
 
-        final FilteredActiveSessionManager manager = new FilteredActiveSessionManager(delegate);
+        final ExpiredSessionDeletingSessionManager manager = new ExpiredSessionDeletingSessionManager(delegate);
         assertThat(manager.get("id").join()).isNull();
     }
 

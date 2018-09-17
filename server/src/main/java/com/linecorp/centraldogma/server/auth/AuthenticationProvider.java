@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package com.linecorp.centraldogma.server.authentication;
+package com.linecorp.centraldogma.server.auth;
 
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V0_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
@@ -35,17 +35,6 @@ import com.linecorp.centraldogma.server.CentralDogmaConfig;
  * An interface which configures the authentication layer for the Central Dogma server.
  */
 public interface AuthenticationProvider {
-
-    /**
-     * Creates a decorator which initiates the authentication if a request is not authenticated.
-     */
-    Function<Service<HttpRequest, HttpResponse>,
-            Service<HttpRequest, HttpResponse>> newAuthenticationDecorator();
-
-    /**
-     * Creates a {@link Service} which handles messages for the authentication.
-     */
-    Iterable<ServiceWithPathMappings<HttpRequest, HttpResponse>> newAuthenticationServices();
 
     /**
      * Returns the set of {@link PathMapping}s which handles a login request. It is necessary only if
@@ -72,4 +61,15 @@ public interface AuthenticationProvider {
     static Function<String, String> loginNameNormalizer(CentralDogmaConfig cfg) {
         return cfg.caseSensitiveLoginNames() ? Function.identity() : Ascii::toLowerCase;
     }
+
+    /**
+     * Creates a decorator which initiates the authentication if a request is not authenticated.
+     */
+    Function<Service<HttpRequest, HttpResponse>,
+            Service<HttpRequest, HttpResponse>> newAuthenticationDecorator();
+
+    /**
+     * Creates a {@link Service} which handles messages for the authentication.
+     */
+    Iterable<ServiceWithPathMappings<HttpRequest, HttpResponse>> newAuthenticationServices();
 }

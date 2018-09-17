@@ -51,7 +51,7 @@ clientDependencies {
     copyExcludes = ['**/Gruntfile.js', 'gulpfile.js', 'source/**', 'test', 'karma.conf.js', 'index.js']
     npm {
         'ace-builds'('1.2.5', from: 'src-min-noconflict')
-        'angular'('1.5.8',)
+        'angular'('1.5.8')
         'angular-cache-buster'('0.4.3')
         'angular-cookies'('1.5.8')
         'angular-dynamic-locale'('0.1.32')

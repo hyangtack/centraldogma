@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.authentication.shiro;
+package com.linecorp.centraldogma.server.auth.shiro;
 
 import static com.linecorp.centraldogma.server.internal.api.HttpApiUtil.throwResponse;
 import static java.util.Objects.requireNonNull;
@@ -57,8 +57,8 @@ import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.BasicToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProvider;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
@@ -172,7 +172,7 @@ final class LoginService extends AbstractHttpService
             if (user != null && !user.isAuthenticated()) {
                 user.logout();
             }
-        } catch (Throwable cause) {
+        } catch (Exception cause) {
             logger.debug("{} Failed to logout a user: {}", ctx, user, cause);
         }
     }

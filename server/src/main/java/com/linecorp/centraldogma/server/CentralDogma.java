@@ -87,13 +87,13 @@ import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProvider;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProviderFactory;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProviderParameters;
+import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
+import com.linecorp.centraldogma.server.auth.AuthenticationProviderFactory;
+import com.linecorp.centraldogma.server.auth.AuthenticationProviderParameters;
 import com.linecorp.centraldogma.server.internal.admin.authentication.CachedSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.authentication.CsrfTokenAuthorizer;
+import com.linecorp.centraldogma.server.internal.admin.authentication.ExpiredSessionDeletingSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.authentication.FileBasedSessionManager;
-import com.linecorp.centraldogma.server.internal.admin.authentication.FilteredActiveSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.authentication.SessionManager;
 import com.linecorp.centraldogma.server.internal.admin.authentication.SessionTokenAuthorizer;
 import com.linecorp.centraldogma.server.internal.admin.service.RepositoryService;
@@ -400,9 +400,9 @@ public class CentralDogma implements AutoCloseable {
         SessionManager manager;
         try {
             manager = new FileBasedSessionManager(new File(cfg.dataDir(), "_sessions").toPath(),
-                                                  cfg.sessionClearanceCronSchedule());
+                                                  cfg.sessionClearanceSchedule());
             manager = new CachedSessionManager(manager, Caffeine.from(cfg.sessionCacheSpec()).build());
-            return new FilteredActiveSessionManager(manager);
+            return new ExpiredSessionDeletingSessionManager(manager);
         } catch (IOException e) {
             throw new IOError(e);
         } catch (SchedulerException e) {

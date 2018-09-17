@@ -55,13 +55,13 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableMap;
 
 import com.linecorp.centraldogma.server.CentralDogmaConfig;
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
-import com.linecorp.centraldogma.server.authentication.AuthenticationException;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticationException;
 
 /**
  * A {@link SessionManager} based on the file system. The sessions stored in the file system would be
- * deleted when the {@link #delete(String)} method is called or when the {@link DeletingExpiredSessionJob}
- * finds the expired session. The {@link CentralDogmaConfig#sessionClearanceCronSchedule()} can configure
+ * deleted when the {@link #delete(String)} method is called or when the {@link ExpiredSessionDeletingJob}
+ * finds the expired session. The {@link CentralDogmaConfig#sessionClearanceSchedule()} can configure
  * the schedule for deleting expired sessions.
  */
 public final class FileBasedSessionManager implements SessionManager {
@@ -117,12 +117,12 @@ public final class FileBasedSessionManager implements SessionManager {
 
         final Scheduler scheduler = new StdSchedulerFactory(cfg).getScheduler();
 
-        final JobDetail job = newJob(DeletingExpiredSessionJob.class)
+        final JobDetail job = newJob(ExpiredSessionDeletingJob.class)
                 .usingJobData(newJobDataMap(ImmutableMap.of(ROOT_DIR, rootDir)))
                 .build();
 
         final Trigger trigger = newTrigger()
-                .withIdentity(myInstanceId, DeletingExpiredSessionJob.class.getSimpleName())
+                .withIdentity(myInstanceId, ExpiredSessionDeletingJob.class.getSimpleName())
                 .withSchedule(cronSchedule(cronExpr))
                 .build();
 
@@ -285,11 +285,11 @@ public final class FileBasedSessionManager implements SessionManager {
     /**
      * A job for deleting expired sessions from the file system.
      */
-    public static class DeletingExpiredSessionJob implements Job {
+    public static class ExpiredSessionDeletingJob implements Job {
         @Override
         public void execute(JobExecutionContext context) throws JobExecutionException {
             try {
-                logger.debug("Started {} job.", DeletingExpiredSessionJob.class.getSimpleName());
+                logger.debug("Started {} job.", ExpiredSessionDeletingJob.class.getSimpleName());
                 final Path rootDir = (Path) context.getJobDetail().getJobDataMap().get(ROOT_DIR);
                 final Instant now = Instant.now();
                 Files.walk(rootDir, 2)
@@ -315,9 +315,9 @@ public final class FileBasedSessionManager implements SessionManager {
                              logger.warn("Failed to delete a file: {}", path, cause);
                          }
                      });
-                logger.debug("Finished {} job.", DeletingExpiredSessionJob.class.getSimpleName());
+                logger.debug("Finished {} job.", ExpiredSessionDeletingJob.class.getSimpleName());
             } catch (Throwable cause) {
-                logger.warn("Failed {} job:", DeletingExpiredSessionJob.class.getSimpleName(), cause);
+                logger.warn("Failed {} job:", ExpiredSessionDeletingJob.class.getSimpleName(), cause);
             }
         }
     }

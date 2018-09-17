@@ -34,9 +34,9 @@ import com.google.common.collect.ImmutableSet.Builder;
 
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProvider;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProviderFactory;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
+import com.linecorp.centraldogma.server.auth.AuthenticationProviderFactory;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;
 
 /**
@@ -70,7 +70,7 @@ public final class CentralDogmaBuilder {
             "maximumSize=8192,expireAfterWrite=" + (DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS / 1000) + 's';
 
     // Schedule a job for deleting expired sessions at 0:30, 4:30, 8:30, 12:30, 16:30 and 20:30 for every day.
-    static final String DEFAULT_SESSION_CLEARANCE_CRON_SCHEDULE = "0 30 */4 ? * *";
+    static final String DEFAULT_SESSION_CLEARANCE_SCHEDULE = "0 30 */4 ? * *";
 
     // Armeria properties
     // Note that we use nullable types here for optional properties.
@@ -106,7 +106,7 @@ public final class CentralDogmaBuilder {
     private String accessLogFormat;
     private final ImmutableSet.Builder<String> administrators = new Builder<>();
     private boolean caseSensitiveLoginNames;
-    private String sessionClearanceCronSchedule = DEFAULT_SESSION_CLEARANCE_CRON_SCHEDULE;
+    private String sessionClearanceSchedule = DEFAULT_SESSION_CLEARANCE_SCHEDULE;
 
     /**
      * Creates a new builder with the specified data directory.
@@ -398,9 +398,9 @@ public final class CentralDogmaBuilder {
     /**
      * Sets a {@code cron} expression for scheduling a job which clears the expired sessions.
      */
-    public CentralDogmaBuilder sessionClearanceCronSchedule(String sessionClearanceCronSchedule) {
-        this.sessionClearanceCronSchedule =
-                requireNonNull(sessionClearanceCronSchedule, "sessionClearanceCronSchedule");
+    public CentralDogmaBuilder sessionClearanceSchedule(String sessionClearanceSchedule) {
+        this.sessionClearanceSchedule =
+                requireNonNull(sessionClearanceSchedule, "sessionClearanceSchedule");
         return this;
     }
 
@@ -424,6 +424,6 @@ public final class CentralDogmaBuilder {
                                       maxNumFilesPerMirror, maxNumBytesPerMirror, replicationConfig,
                                       securityEnabled, null,
                                       accessLogFormat, administrators.build(), caseSensitiveLoginNames,
-                                      sessionClearanceCronSchedule);
+                                      sessionClearanceSchedule);
     }
 }

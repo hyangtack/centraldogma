@@ -27,7 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.linecorp.centraldogma.common.Revision;
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
 import com.linecorp.centraldogma.server.internal.admin.authentication.SessionManager;
 import com.linecorp.centraldogma.server.internal.storage.project.ProjectManager;
 import com.linecorp.centraldogma.server.internal.storage.repository.Repository;

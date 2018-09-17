@@ -18,6 +18,6 @@
  * <a href="https://shiro.apache.org/">Apache Shiro</a>.
  */
 @NonNullByDefault
-package com.linecorp.centraldogma.server.authentication.shiro;
+package com.linecorp.centraldogma.server.auth.shiro;
 
 import com.linecorp.centraldogma.common.util.NonNullByDefault;

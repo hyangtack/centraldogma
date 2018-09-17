@@ -44,9 +44,9 @@ import com.linecorp.armeria.server.auth.BasicToken;
 import com.linecorp.armeria.server.auth.HttpAuthServiceBuilder;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProvider;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProviderParameters;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
+import com.linecorp.centraldogma.server.auth.AuthenticationProviderParameters;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 

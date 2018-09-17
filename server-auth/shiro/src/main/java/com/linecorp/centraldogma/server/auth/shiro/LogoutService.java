@@ -14,7 +14,7 @@
  * under the License.
  */
 
-package com.linecorp.centraldogma.server.authentication.shiro;
+package com.linecorp.centraldogma.server.auth.shiro;
 
 import static java.util.Objects.requireNonNull;
 
@@ -41,7 +41,7 @@ import com.linecorp.armeria.server.ServiceRequestContext;
 import com.linecorp.armeria.server.ServiceWithPathMappings;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProvider;
+import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 /**

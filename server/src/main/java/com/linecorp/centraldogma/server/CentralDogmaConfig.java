@@ -24,7 +24,7 @@ import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_M
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_SESSION_CACHE_SPEC;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_SESSION_CLEARANCE_CRON_SCHEDULE;
+import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_SESSION_CLEARANCE_SCHEDULE;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
@@ -32,11 +32,14 @@ import static java.util.Objects.requireNonNull;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.text.ParseException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 import javax.annotation.Nullable;
+
+import org.quartz.CronExpression;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -119,7 +122,7 @@ public final class CentralDogmaConfig {
     private final boolean caseSensitiveLoginNames;
 
     // A schedule for a cron job that clearing expired sessions
-    private final String sessionClearanceCronSchedule;
+    private final String sessionClearanceSchedule;
 
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
@@ -150,7 +153,7 @@ public final class CentralDogmaConfig {
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
             @JsonProperty("administrators") @Nullable Set<String> administrators,
             @JsonProperty("caseSensitiveLoginNames") @Nullable Boolean caseSensitiveLoginNames,
-            @JsonProperty("sessionClearanceCronSchedule") @Nullable String sessionClearanceCronSchedule) {
+            @JsonProperty("sessionClearanceSchedule") @Nullable String sessionClearanceSchedule) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -197,8 +200,18 @@ public final class CentralDogmaConfig {
         this.administrators = administrators != null ? ImmutableSet.copyOf(administrators)
                                                      : ImmutableSet.of();
         this.caseSensitiveLoginNames = firstNonNull(caseSensitiveLoginNames, false);
-        this.sessionClearanceCronSchedule = firstNonNull(sessionClearanceCronSchedule,
-                                                         DEFAULT_SESSION_CLEARANCE_CRON_SCHEDULE);
+        this.sessionClearanceSchedule =
+                validateSessionClearanceSchedule(firstNonNull(sessionClearanceSchedule,
+                                                              DEFAULT_SESSION_CLEARANCE_SCHEDULE));
+    }
+
+    private static String validateSessionClearanceSchedule(String sessionClearanceSchedule) {
+        try {
+            CronExpression.validateExpression(sessionClearanceSchedule);
+            return sessionClearanceSchedule;
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Invalid session clearance schedule", e);
+        }
     }
 
     @JsonProperty
@@ -342,8 +355,8 @@ public final class CentralDogmaConfig {
     }
 
     @JsonProperty
-    public String sessionClearanceCronSchedule() {
-        return sessionClearanceCronSchedule;
+    public String sessionClearanceSchedule() {
+        return sessionClearanceSchedule;
     }
 
     @Override

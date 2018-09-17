@@ -21,7 +21,7 @@ import java.util.concurrent.CompletableFuture;
 
 import com.github.benmanes.caffeine.cache.Cache;
 
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
 
 /**
  * Memory cache based {@link SessionManager} implementation.

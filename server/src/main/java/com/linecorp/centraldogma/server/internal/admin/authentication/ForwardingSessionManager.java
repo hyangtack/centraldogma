@@ -20,7 +20,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.concurrent.CompletableFuture;
 
 import com.linecorp.centraldogma.internal.Util;
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
 
 /**
  * A {@link SessionManager} which forwards all its method calls to another {@link SessionManager}.

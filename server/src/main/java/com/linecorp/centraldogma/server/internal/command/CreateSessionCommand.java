@@ -26,9 +26,9 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.MoreObjects.ToStringHelper;
 
 import com.linecorp.centraldogma.common.Author;
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSessionJsonDeserializer;
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSessionJsonSerializer;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSessionJsonDeserializer;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSessionJsonSerializer;
 
 public final class CreateSessionCommand extends SessionCommand {
 

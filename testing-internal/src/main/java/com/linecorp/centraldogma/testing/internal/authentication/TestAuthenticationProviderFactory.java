@@ -15,9 +15,9 @@
  */
 package com.linecorp.centraldogma.testing.internal.authentication;
 
-import com.linecorp.centraldogma.server.authentication.AuthenticationProvider;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProviderFactory;
-import com.linecorp.centraldogma.server.authentication.AuthenticationProviderParameters;
+import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
+import com.linecorp.centraldogma.server.auth.AuthenticationProviderFactory;
+import com.linecorp.centraldogma.server.auth.AuthenticationProviderParameters;
 
 /**
  * An {@link AuthenticationProviderFactory} implementation for testing.

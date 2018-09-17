@@ -18,14 +18,14 @@ package com.linecorp.centraldogma.server.internal.admin.authentication;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
-import com.linecorp.centraldogma.server.authentication.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
 
 /**
  * A {@link SessionManager} which deletes expired sessions while getting them.
  */
-public final class FilteredActiveSessionManager extends ForwardingSessionManager {
+public final class ExpiredSessionDeletingSessionManager extends ForwardingSessionManager {
 
-    public FilteredActiveSessionManager(SessionManager delegate) {
+    public ExpiredSessionDeletingSessionManager(SessionManager delegate) {
         super(delegate);
     }
 
