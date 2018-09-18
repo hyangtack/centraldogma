@@ -17,8 +17,11 @@ package com.linecorp.centraldogma.server.auth.shiro;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.function.Function;
+
 import org.apache.shiro.config.Ini;
 
+import com.linecorp.centraldogma.server.auth.AuthenticationConfig;
 import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
 import com.linecorp.centraldogma.server.auth.AuthenticationProviderFactory;
 import com.linecorp.centraldogma.server.auth.AuthenticationProviderParameters;
@@ -27,16 +30,40 @@ import com.linecorp.centraldogma.server.auth.AuthenticationProviderParameters;
  * A factory for creating an Apache Shiro based {@link AuthenticationProvider}.
  */
 public final class ShiroAuthenticationProviderFactory implements AuthenticationProviderFactory {
+
+    private final Function<AuthenticationConfig, Ini> iniConfigResolver;
+
+    /**
+     * Creates a new instance with the default {@link Ini} config resolver.
+     */
+    public ShiroAuthenticationProviderFactory() {
+        this(ShiroAuthenticationProviderFactory::fromConfig);
+    }
+
+    /**
+     * Creates a new instance with the specified {@code iniConfigResolver}.
+     */
+    public ShiroAuthenticationProviderFactory(Function<AuthenticationConfig, Ini> iniConfigResolver) {
+        this.iniConfigResolver = requireNonNull(iniConfigResolver, "iniConfigResolver");
+    }
+
     @Override
     public AuthenticationProvider create(AuthenticationProviderParameters parameters) {
         requireNonNull(parameters, "parameters");
-        final Ini iniConfig = Ini.fromResourcePath(
-                requireNonNull(parameters.securityConfigFile(), "securityConfigFile").getPath());
-        return new ShiroAuthenticationProvider(parameters.config(),
-                                               iniConfig,
+        return new ShiroAuthenticationProvider(parameters.authConfig(),
+                                               iniConfigResolver.apply(parameters.authConfig()),
                                                parameters.authorizer(),
                                                parameters.sessionIdGenerator(),
                                                parameters.loginSessionPropagator(),
                                                parameters.logoutSessionPropagator());
+    }
+
+    private static Ini fromConfig(AuthenticationConfig cfg) {
+        try {
+            final String iniPath = cfg.properties(String.class);
+            return Ini.fromResourcePath(iniPath);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to create " + Ini.class.getSimpleName(), e);
+        }
     }
 }

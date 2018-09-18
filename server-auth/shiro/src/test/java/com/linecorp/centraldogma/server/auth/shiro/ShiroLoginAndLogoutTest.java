@@ -26,11 +26,9 @@ import static com.linecorp.centraldogma.testing.internal.authentication.TestAuth
 import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.usersMe;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.shiro.config.Ini;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -50,24 +48,15 @@ public class ShiroLoginAndLogoutTest {
     @ClassRule
     public static TemporaryFolder folder = new TemporaryFolder();
 
-    static File newSecurityConfigFile() {
-        try {
-            final File file = folder.newFile();
-            final FileWriter writer = new FileWriter(file);
-            writer.write("[users]\n" + USERNAME + " = " + PASSWORD + '\n');
-            writer.flush();
-            writer.close();
-            return file;
-        } catch (IOException e) {
-            throw new Error(e);
-        }
-    }
-
     @Rule
     public final CentralDogmaRule rule = new CentralDogmaRule() {
         @Override
         protected void configure(CentralDogmaBuilder builder) {
-            builder.securityConfigFile(newSecurityConfigFile());
+            builder.authProviderFactory(new ShiroAuthenticationProviderFactory(unused -> {
+                final Ini iniConfig = new Ini();
+                iniConfig.addSection("users").put(USERNAME, PASSWORD);
+                return iniConfig;
+            }));
             builder.webAppEnabled(true);
         }
     };

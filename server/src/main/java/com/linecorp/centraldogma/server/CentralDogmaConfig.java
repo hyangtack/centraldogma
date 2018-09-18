@@ -23,23 +23,16 @@ import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_MAX_N
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_MIRRORING_THREADS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_NUM_REPOSITORY_WORKERS;
 import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_REPOSITORY_CACHE_SPEC;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_SESSION_CACHE_SPEC;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_SESSION_CLEARANCE_SCHEDULE;
-import static com.linecorp.centraldogma.server.CentralDogmaBuilder.DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS;
 import static com.linecorp.centraldogma.server.internal.storage.repository.cache.RepositoryCache.validateCacheSpec;
 import static java.util.Objects.requireNonNull;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.text.ParseException;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import javax.annotation.Nullable;
-
-import org.quartz.CronExpression;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -61,6 +54,7 @@ import com.google.common.collect.ImmutableSet;
 import com.linecorp.armeria.common.SessionProtocol;
 import com.linecorp.armeria.server.ServerPort;
 import com.linecorp.centraldogma.internal.Jackson;
+import com.linecorp.centraldogma.server.auth.AuthenticationConfig;
 
 import io.netty.util.NetUtil;
 
@@ -88,11 +82,9 @@ public final class CentralDogmaConfig {
 
     // Cache
     private final String repositoryCacheSpec;
-    private final String sessionCacheSpec;
 
     // Web dashboard
     private final boolean webAppEnabled;
-    private final long webAppSessionTimeoutMillis;
 
     // Mirroring
     private final boolean mirroringEnabled;
@@ -108,21 +100,14 @@ public final class CentralDogmaConfig {
     private final ReplicationConfig replicationConfig;
 
     // Security
-    private final boolean securityEnabled;
     private final boolean csrfTokenRequiredForThrift;
 
     // Access log
     @Nullable
     private final String accessLogFormat;
 
-    // Administrator
-    private final Set<String> administrators;
-
-    // Whether case-sensitive matching is performed when login names are compared
-    private final boolean caseSensitiveLoginNames;
-
-    // A schedule for a cron job that clearing expired sessions
-    private final String sessionClearanceSchedule;
+    @Nullable
+    private final AuthenticationConfig authenticationConfig;
 
     CentralDogmaConfig(
             @JsonProperty(value = "dataDir", required = true) File dataDir,
@@ -136,24 +121,18 @@ public final class CentralDogmaConfig {
             @JsonProperty("idleTimeoutMillis") @Nullable Long idleTimeoutMillis,
             @JsonProperty("maxFrameLength") @Nullable Integer maxFrameLength,
             @JsonProperty("numRepositoryWorkers") @Nullable Integer numRepositoryWorkers,
-            @JsonProperty("cacheSpec") @Nullable String cacheSpec, // for backward compatibility
             @JsonProperty("repositoryCacheSpec") @Nullable String repositoryCacheSpec,
-            @JsonProperty("sessionCacheSpec") @Nullable String sessionCacheSpec,
             @JsonProperty("gracefulShutdownTimeout") @Nullable
                     GracefulShutdownTimeout gracefulShutdownTimeout,
             @JsonProperty("webAppEnabled") @Nullable Boolean webAppEnabled,
-            @JsonProperty("webAppSessionTimeoutMillis") @Nullable Long webAppSessionTimeoutMillis,
             @JsonProperty("mirroringEnabled") @Nullable Boolean mirroringEnabled,
             @JsonProperty("numMirroringThreads") @Nullable Integer numMirroringThreads,
             @JsonProperty("maxNumFilesPerMirror") @Nullable Integer maxNumFilesPerMirror,
             @JsonProperty("maxNumBytesPerMirror") @Nullable Long maxNumBytesPerMirror,
             @JsonProperty("replication") @Nullable ReplicationConfig replicationConfig,
-            @JsonProperty("securityEnabled") @Nullable Boolean securityEnabled,
             @JsonProperty("csrfTokenRequiredForThrift") @Nullable Boolean csrfTokenRequiredForThrift,
             @JsonProperty("accessLogFormat") @Nullable String accessLogFormat,
-            @JsonProperty("administrators") @Nullable Set<String> administrators,
-            @JsonProperty("caseSensitiveLoginNames") @Nullable Boolean caseSensitiveLoginNames,
-            @JsonProperty("sessionClearanceSchedule") @Nullable String sessionClearanceSchedule) {
+            @JsonProperty("authentication") @Nullable AuthenticationConfig authenticationConfig) {
 
         this.dataDir = requireNonNull(dataDir, "dataDir");
         this.ports = ImmutableList.copyOf(requireNonNull(ports, "ports"));
@@ -168,20 +147,9 @@ public final class CentralDogmaConfig {
         this.numRepositoryWorkers = firstNonNull(numRepositoryWorkers, DEFAULT_NUM_REPOSITORY_WORKERS);
         checkArgument(this.numRepositoryWorkers > 0,
                       "numRepositoryWorkers: %s (expected: > 0)", this.numRepositoryWorkers);
-
-        if (repositoryCacheSpec != null) {
-            this.repositoryCacheSpec = validateCacheSpec(repositoryCacheSpec);
-        } else {
-            this.repositoryCacheSpec = validateCacheSpec(
-                    firstNonNull(cacheSpec, DEFAULT_REPOSITORY_CACHE_SPEC));
-        }
-
-        this.sessionCacheSpec = validateCacheSpec(firstNonNull(sessionCacheSpec, DEFAULT_SESSION_CACHE_SPEC));
+        this.repositoryCacheSpec = validateCacheSpec(
+                firstNonNull(repositoryCacheSpec, DEFAULT_REPOSITORY_CACHE_SPEC));
         this.webAppEnabled = firstNonNull(webAppEnabled, true);
-        this.webAppSessionTimeoutMillis = firstNonNull(webAppSessionTimeoutMillis,
-                                                       DEFAULT_WEB_APP_SESSION_TIMEOUT_MILLIS);
-        checkArgument(this.webAppSessionTimeoutMillis > 0,
-                      "webAppSessionTimeoutMillis: %s (expected: > 0)", this.webAppSessionTimeoutMillis);
         this.mirroringEnabled = firstNonNull(mirroringEnabled, true);
         this.numMirroringThreads = firstNonNull(numMirroringThreads, DEFAULT_NUM_MIRRORING_THREADS);
         checkArgument(this.numMirroringThreads > 0,
@@ -194,24 +162,10 @@ public final class CentralDogmaConfig {
                       "maxNumBytesPerMirror: %s (expected: > 0)", this.maxNumBytesPerMirror);
         this.gracefulShutdownTimeout = gracefulShutdownTimeout;
         this.replicationConfig = firstNonNull(replicationConfig, ReplicationConfig.NONE);
-        this.securityEnabled = firstNonNull(securityEnabled, false);
         this.csrfTokenRequiredForThrift = firstNonNull(csrfTokenRequiredForThrift, true);
         this.accessLogFormat = accessLogFormat;
-        this.administrators = administrators != null ? ImmutableSet.copyOf(administrators)
-                                                     : ImmutableSet.of();
-        this.caseSensitiveLoginNames = firstNonNull(caseSensitiveLoginNames, false);
-        this.sessionClearanceSchedule =
-                validateSessionClearanceSchedule(firstNonNull(sessionClearanceSchedule,
-                                                              DEFAULT_SESSION_CLEARANCE_SCHEDULE));
-    }
 
-    private static String validateSessionClearanceSchedule(String sessionClearanceSchedule) {
-        try {
-            CronExpression.validateExpression(sessionClearanceSchedule);
-            return sessionClearanceSchedule;
-        } catch (ParseException e) {
-            throw new IllegalArgumentException("Invalid session clearance schedule", e);
-        }
+        this.authenticationConfig = authenticationConfig;
     }
 
     @JsonProperty
@@ -283,11 +237,6 @@ public final class CentralDogmaConfig {
     }
 
     @JsonProperty
-    public String sessionCacheSpec() {
-        return sessionCacheSpec;
-    }
-
-    @JsonProperty
     @JsonSerialize(converter = OptionalConverter.class)
     public Optional<GracefulShutdownTimeout> gracefulShutdownTimeout() {
         return Optional.ofNullable(gracefulShutdownTimeout);
@@ -296,11 +245,6 @@ public final class CentralDogmaConfig {
     @JsonProperty
     public boolean isWebAppEnabled() {
         return webAppEnabled;
-    }
-
-    @JsonProperty
-    public long webAppSessionTimeoutMillis() {
-        return webAppSessionTimeoutMillis;
     }
 
     @JsonProperty
@@ -329,11 +273,6 @@ public final class CentralDogmaConfig {
     }
 
     @JsonProperty
-    public boolean isSecurityEnabled() {
-        return securityEnabled;
-    }
-
-    @JsonProperty
     public boolean isCsrfTokenRequiredForThrift() {
         return csrfTokenRequiredForThrift;
     }
@@ -344,19 +283,14 @@ public final class CentralDogmaConfig {
         return accessLogFormat;
     }
 
-    @JsonProperty
-    public Set<String> administrators() {
-        return administrators;
+    @Nullable
+    @JsonProperty("authentication")
+    public AuthenticationConfig authenticationConfig() {
+        return authenticationConfig;
     }
 
-    @JsonProperty
-    public boolean caseSensitiveLoginNames() {
-        return caseSensitiveLoginNames;
-    }
-
-    @JsonProperty
-    public String sessionClearanceSchedule() {
-        return sessionClearanceSchedule;
+    public boolean hasAuthenticationConfig() {
+        return authenticationConfig != null;
     }
 
     @Override

@@ -40,8 +40,8 @@ import com.linecorp.armeria.server.ServiceWithPathMappings;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.auth.HttpAuthServiceBuilder;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
 import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
+import com.linecorp.centraldogma.server.auth.AuthenticationConfig;
 import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
 
 /**
@@ -49,18 +49,20 @@ import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
  */
 public final class ShiroAuthenticationProvider implements AuthenticationProvider {
 
-    private final CentralDogmaConfig centralDogmaConfig;
+    private final AuthenticationConfig authConfig;
     private final Ini config;
     private final Authorizer<HttpRequest> authorizer;
     private final Supplier<String> sessionIdGenerator;
     private final Function<AuthenticatedSession, CompletableFuture<Void>> loginSessionPropagator;
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
 
-    ShiroAuthenticationProvider(CentralDogmaConfig centralDogmaConfig, Ini config,
-                                Authorizer<HttpRequest> authorizer, Supplier<String> sessionIdGenerator,
+    ShiroAuthenticationProvider(AuthenticationConfig authConfig,
+                                Ini config,
+                                Authorizer<HttpRequest> authorizer,
+                                Supplier<String> sessionIdGenerator,
                                 Function<AuthenticatedSession, CompletableFuture<Void>> loginSessionPropagator,
                                 Function<String, CompletableFuture<Void>> logoutSessionPropagator) {
-        this.centralDogmaConfig = requireNonNull(centralDogmaConfig, "centralDogmaConfig");
+        this.authConfig = requireNonNull(authConfig, "authConfig");
         this.config = requireNonNull(config, "config");
         this.authorizer = requireNonNull(authorizer, "authorizer");
         this.sessionIdGenerator = requireNonNull(sessionIdGenerator, "sessionIdGenerator");
@@ -94,15 +96,11 @@ public final class ShiroAuthenticationProvider implements AuthenticationProvider
         };
 
         final SecurityManager securityManager = factory.getInstance();
-        final Function<String, String> loginNameNormalizer =
-                AuthenticationProvider.loginNameNormalizer(centralDogmaConfig);
-        final Cache<String, AccessToken> sessionCache =
-                Caffeine.from(centralDogmaConfig.sessionCacheSpec()).build();
-        final Duration sessionValidDuration =
-                Duration.ofMillis(centralDogmaConfig.webAppSessionTimeoutMillis());
+        final Cache<String, AccessToken> sessionCache = Caffeine.from(authConfig.sessionCacheSpec()).build();
+        final Duration sessionValidDuration = Duration.ofMillis(authConfig.sessionTimeoutMillis());
 
-        return ImmutableList.of(new LoginService(securityManager, loginNameNormalizer, sessionCache,
-                                                 loginSessionPropagator, sessionValidDuration),
+        return ImmutableList.of(new LoginService(securityManager, authConfig.loginNameNormalizer(),
+                                                 sessionCache, loginSessionPropagator, sessionValidDuration),
                                 new LogoutService(securityManager, sessionCache, logoutSessionPropagator));
     }
 }

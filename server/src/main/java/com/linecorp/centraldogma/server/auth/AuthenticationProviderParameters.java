@@ -17,12 +17,9 @@ package com.linecorp.centraldogma.server.auth;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.File;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
-import javax.annotation.Nullable;
 
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.server.auth.Authorizer;
@@ -35,8 +32,7 @@ public final class AuthenticationProviderParameters {
 
     private final Authorizer<HttpRequest> authorizer;
     private final CentralDogmaConfig config;
-    @Nullable
-    private final File securityConfigFile;
+    private final AuthenticationConfig authConfig;
     private final Supplier<String> sessionIdGenerator;
     private final Function<AuthenticatedSession, CompletableFuture<Void>> loginSessionPropagator;
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
@@ -46,8 +42,6 @@ public final class AuthenticationProviderParameters {
      *
      * @param authorizer the {@link Authorizer} which is used to authenticate a session token
      * @param config the configuration for the Central Dogma server
-     * @param securityConfigFile the {@link File} which is specified by the {@code -securityConfig} parameter
-     *                           when starting the Central Dogma server
      * @param sessionIdGenerator the session ID generator which must be used when generating a new session ID
      * @param loginSessionPropagator the function which propagates the {@link AuthenticatedSession}
      *                               to the other replicas
@@ -57,16 +51,15 @@ public final class AuthenticationProviderParameters {
     public AuthenticationProviderParameters(
             Authorizer<HttpRequest> authorizer,
             CentralDogmaConfig config,
-            @Nullable File securityConfigFile,
             Supplier<String> sessionIdGenerator,
             Function<AuthenticatedSession, CompletableFuture<Void>> loginSessionPropagator,
             Function<String, CompletableFuture<Void>> logoutSessionPropagator) {
         this.authorizer = requireNonNull(authorizer, "authorizer");
         this.config = requireNonNull(config, "config");
-        this.securityConfigFile = securityConfigFile;
         this.sessionIdGenerator = requireNonNull(sessionIdGenerator, "sessionIdGenerator");
         this.loginSessionPropagator = requireNonNull(loginSessionPropagator, "loginSessionPropagator");
         this.logoutSessionPropagator = requireNonNull(logoutSessionPropagator, "logoutSessionPropagator");
+        authConfig = requireNonNull(config.authenticationConfig(), "authConfig");
     }
 
     /**
@@ -84,12 +77,10 @@ public final class AuthenticationProviderParameters {
     }
 
     /**
-     * Returns a {@link File} which is specified by the {@code -securityConfig} parameter when starting
-     * the Central Dogma server.
+     * Returns the authentication configuration.
      */
-    @Nullable
-    public File securityConfigFile() {
-        return securityConfigFile;
+    public AuthenticationConfig authConfig() {
+        return authConfig;
     }
 
     /**

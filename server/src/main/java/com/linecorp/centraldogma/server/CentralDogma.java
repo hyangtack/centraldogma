@@ -16,6 +16,7 @@
 
 package com.linecorp.centraldogma.server;
 
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V0_PATH_PREFIX;
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
@@ -29,10 +30,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -53,8 +52,6 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Streams;
 
 import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpHeaders;
@@ -87,8 +84,8 @@ import com.linecorp.centraldogma.internal.CsrfToken;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.internal.thrift.CentralDogmaService;
+import com.linecorp.centraldogma.server.auth.AuthenticationConfig;
 import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
-import com.linecorp.centraldogma.server.auth.AuthenticationProviderFactory;
 import com.linecorp.centraldogma.server.auth.AuthenticationProviderParameters;
 import com.linecorp.centraldogma.server.internal.admin.authentication.CachedSessionManager;
 import com.linecorp.centraldogma.server.internal.admin.authentication.CsrfTokenAuthorizer;
@@ -142,25 +139,18 @@ public class CentralDogma implements AutoCloseable {
     }
 
     /**
-     * Creates a new instance from the given configuration files.
+     * Creates a new instance from the given configuration file.
      *
      * @throws IOException if failed to load the configuration from the specified file
      */
-    public static CentralDogma forConfig(File configFile, @Nullable File securityConfigFile)
-            throws IOException {
+    public static CentralDogma forConfig(File configFile) throws IOException {
         requireNonNull(configFile, "configFile");
-        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class),
-                                securityConfigFile, null);
+        return new CentralDogma(Jackson.readValue(configFile, CentralDogmaConfig.class));
     }
 
     private final StartStopSupport<Void, Void> startStop = new CentralDogmaStartStop();
 
     private final CentralDogmaConfig cfg;
-    @Nullable
-    private final File securityConfigFile;
-    @Nullable
-    private final AuthenticationProviderFactory authenticationProviderFactory;
-
     @Nullable
     private volatile ProjectManager pm;
     @Nullable
@@ -174,32 +164,8 @@ public class CentralDogma implements AutoCloseable {
     @Nullable
     private SessionManager sessionManager;
 
-    CentralDogma(CentralDogmaConfig cfg, @Nullable File securityConfigFile,
-                 @Nullable AuthenticationProviderFactory authenticationProviderFactory) {
+    CentralDogma(CentralDogmaConfig cfg) {
         this.cfg = requireNonNull(cfg, "cfg");
-        this.securityConfigFile = securityConfigFile;
-
-        if (cfg.isSecurityEnabled()) {
-            this.authenticationProviderFactory =
-                    authenticationProviderFactory != null ? authenticationProviderFactory
-                                                          : loadService();
-        } else {
-            this.authenticationProviderFactory = null;
-        }
-    }
-
-    private static AuthenticationProviderFactory loadService() {
-        final List<AuthenticationProviderFactory> plugins =
-                Streams.stream(ServiceLoader.load(AuthenticationProviderFactory.class,
-                                                  CentralDogma.class.getClassLoader()))
-                       .collect(ImmutableList.toImmutableList());
-        if (plugins.size() == 1) {
-            return plugins.get(0);
-        }
-
-        throw new IllegalStateException(
-                "Unexpected number of " + AuthenticationProviderFactory.class.getSimpleName() +
-                " instances: " + plugins.size() + " (expected: 1)");
     }
 
     /**
@@ -318,16 +284,8 @@ public class CentralDogma implements AutoCloseable {
             // Migrate tokens and create metadata files if it does not exist.
             MigrationUtil.migrate(pm, executor);
 
-            final MetadataService mds = new MetadataService(pm, executor);
-
-            if (authenticationProviderFactory != null) {
-                assert sessionManager != null : "sessionManager";
-                authenticationProvider = createAuthenticationProvider(authenticationProviderFactory,
-                                                                      executor, sessionManager, mds);
-            }
-
             logger.info("Starting the RPC server");
-            server = startServer(pm, executor, mds, authenticationProvider, sessionManager);
+            server = startServer(pm, executor, sessionManager);
             logger.info("Started the RPC server at: {}", server.activePorts());
             logger.info("Started the Central Dogma successfully");
             success = true;
@@ -394,14 +352,15 @@ public class CentralDogma implements AutoCloseable {
 
     @Nullable
     private SessionManager initializeSessionManager() {
-        if (!cfg.isSecurityEnabled()) {
+        final AuthenticationConfig authCfg = cfg.authenticationConfig();
+        if (authCfg == null) {
             return null;
         }
         SessionManager manager;
         try {
             manager = new FileBasedSessionManager(new File(cfg.dataDir(), "_sessions").toPath(),
-                                                  cfg.sessionClearanceSchedule());
-            manager = new CachedSessionManager(manager, Caffeine.from(cfg.sessionCacheSpec()).build());
+                                                  authCfg.sessionValidationSchedule());
+            manager = new CachedSessionManager(manager, Caffeine.from(authCfg.sessionCacheSpec()).build());
             return new ExpiredSessionDeletingSessionManager(manager);
         } catch (IOException e) {
             throw new IOError(e);
@@ -410,25 +369,7 @@ public class CentralDogma implements AutoCloseable {
         }
     }
 
-    private AuthenticationProvider createAuthenticationProvider(
-            AuthenticationProviderFactory factory, CommandExecutor commandExecutor,
-            SessionManager sessionManager, MetadataService mds) {
-        final AuthenticationProviderParameters parameters = new AuthenticationProviderParameters(
-                // Find application first, then find the session token.
-                new ApplicationTokenAuthorizer(mds::findTokenBySecret).orElse(
-                        new SessionTokenAuthorizer(sessionManager, cfg.administrators())),
-                cfg,
-                securityConfigFile,
-                sessionManager::generateSessionId,
-                // Propagate login and logout events to the other replicas.
-                session -> commandExecutor.execute(Command.createSession(session)),
-                sessionId -> commandExecutor.execute(Command.removeSession(sessionId)));
-        return factory.create(parameters);
-    }
-
     private Server startServer(ProjectManager pm, CommandExecutor executor,
-                               MetadataService mds,
-                               @Nullable AuthenticationProvider authenticationProvider,
                                @Nullable SessionManager sessionManager) {
         final ServerBuilder sb = new ServerBuilder();
         cfg.ports().forEach(sb::port);
@@ -457,7 +398,9 @@ public class CentralDogma implements AutoCloseable {
         cfg.gracefulShutdownTimeout().ifPresent(
                 t -> sb.gracefulShutdownTimeout(t.quietPeriodMillis(), t.timeoutMillis()));
 
+        final MetadataService mds = new MetadataService(pm, executor);
         final WatchService watchService = new WatchService();
+        final AuthenticationProvider authProvider = createAuthenticationProvider(executor, sessionManager, mds);
 
         configureThriftService(sb, pm, executor, watchService, mds);
 
@@ -504,7 +447,7 @@ public class CentralDogma implements AutoCloseable {
                                                "bearer " + CsrfToken.ANONYMOUS))
                                                .build());
 
-        configureHttpApi(sb, pm, executor, watchService, mds, authenticationProvider, sessionManager);
+        configureHttpApi(sb, pm, executor, watchService, mds, authProvider);
 
         final String accessLogFormat = cfg.accessLogFormat();
         if (isNullOrEmpty(accessLogFormat)) {
@@ -520,6 +463,27 @@ public class CentralDogma implements AutoCloseable {
         final Server s = sb.build();
         s.start().join();
         return s;
+    }
+
+    @Nullable
+    private AuthenticationProvider createAuthenticationProvider(
+            CommandExecutor commandExecutor, @Nullable SessionManager sessionManager, MetadataService mds) {
+        final AuthenticationConfig authCfg = cfg.authenticationConfig();
+        if (authCfg == null) {
+            return null;
+        }
+
+        checkState(sessionManager != null, "SessionManager is null");
+        final AuthenticationProviderParameters parameters = new AuthenticationProviderParameters(
+                // Find application first, then find the session token.
+                new ApplicationTokenAuthorizer(mds::findTokenBySecret).orElse(
+                        new SessionTokenAuthorizer(sessionManager, authCfg.administrators())),
+                cfg,
+                sessionManager::generateSessionId,
+                // Propagate login and logout events to the other replicas.
+                session -> commandExecutor.execute(Command.createSession(session)),
+                sessionId -> commandExecutor.execute(Command.removeSession(sessionId)));
+        return authCfg.factory().create(parameters);
     }
 
     private CommandExecutor newZooKeeperCommandExecutor(ProjectManager pm, Executor repositoryWorker,
@@ -567,13 +531,11 @@ public class CentralDogma implements AutoCloseable {
     private void configureHttpApi(ServerBuilder sb,
                                   ProjectManager pm, CommandExecutor executor,
                                   WatchService watchService, MetadataService mds,
-                                  @Nullable AuthenticationProvider authenticationProvider,
-                                  @Nullable SessionManager sessionManager) {
+                                  @Nullable AuthenticationProvider authenticationProvider) {
         Function<Service<HttpRequest, HttpResponse>,
                 ? extends Service<HttpRequest, HttpResponse>> decorator;
 
-        if (cfg.isSecurityEnabled()) {
-            assert authenticationProvider != null : "authenticationProvider";
+        if (authenticationProvider != null) {
             authenticationProvider.newAuthenticationServices().forEach(sb::service);
 
             sb.service("/security_enabled", new AbstractHttpService() {
@@ -638,9 +600,11 @@ public class CentralDogma implements AutoCloseable {
                             new ContentServiceV1(safePm, executor, watchService), decorator,
                             v1RequestConverter, v1ResponseConverter);
 
-        if (cfg.isSecurityEnabled()) {
+        if (authenticationProvider != null) {
+            final AuthenticationConfig authCfg = cfg.authenticationConfig();
+            assert authCfg != null : "authCfg";
             sb.annotatedService(API_V1_PATH_PREFIX,
-                                new MetadataApiService(mds, AuthenticationProvider.loginNameNormalizer(cfg)),
+                                new MetadataApiService(mds, authCfg.loginNameNormalizer()),
                                 decorator, v1RequestConverter, v1ResponseConverter);
             sb.annotatedService(API_V1_PATH_PREFIX, new TokenService(pm, executor, mds),
                                 decorator, v1RequestConverter, v1ResponseConverter);

@@ -61,11 +61,6 @@ public final class Main implements Daemon {
     @Parameter(names = "-config", description = "The path to the config file", converter = FileConverter.class)
     private File configFile;
 
-    @Nullable
-    @Parameter(names = "-securityConfig", description = "The path to the security config file",
-            converter = FileConverter.class)
-    private File securityConfigFile;
-
     /**
      * Note that {@link Boolean} was used in lieu of {@code boolean} so that JCommander does not print the
      * default value of this option.
@@ -114,13 +109,12 @@ public final class Main implements Daemon {
         }
 
         final File configFile = findConfigFile(this.configFile, DEFAULT_CONFIG_FILE);
-        final File securityConfigFile = findConfigFile(this.securityConfigFile, DEFAULT_SECURITY_CONFIG_FILE);
 
         final CentralDogma dogma;
         if (configFile == null) {
             dogma = new CentralDogmaBuilder(DEFAULT_DATA_DIR).build();
         } else {
-            dogma = CentralDogma.forConfig(configFile, securityConfigFile);
+            dogma = CentralDogma.forConfig(configFile);
         }
 
         dogma.start().get();

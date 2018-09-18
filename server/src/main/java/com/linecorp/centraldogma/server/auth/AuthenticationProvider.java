@@ -21,7 +21,6 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 import java.util.Set;
 import java.util.function.Function;
 
-import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableSet;
 
 import com.linecorp.armeria.common.HttpRequest;
@@ -29,7 +28,6 @@ import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.server.PathMapping;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceWithPathMappings;
-import com.linecorp.centraldogma.server.CentralDogmaConfig;
 
 /**
  * An interface which configures the authentication layer for the Central Dogma server.
@@ -52,14 +50,6 @@ public interface AuthenticationProvider {
     static Set<PathMapping> logoutServicePathMappings() {
         return ImmutableSet.of(PathMapping.ofExact(API_V0_PATH_PREFIX + "logout"),
                                PathMapping.ofExact(API_V1_PATH_PREFIX + "logout"));
-    }
-
-    /**
-     * Returns a {@link Function} which normalizes a login name based on the
-     * {@link CentralDogmaConfig#caseSensitiveLoginNames()} property.
-     */
-    static Function<String, String> loginNameNormalizer(CentralDogmaConfig cfg) {
-        return cfg.caseSensitiveLoginNames() ? Function.identity() : Ascii::toLowerCase;
     }
 
     /**

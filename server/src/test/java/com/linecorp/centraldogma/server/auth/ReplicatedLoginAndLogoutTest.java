@@ -96,7 +96,7 @@ public class ReplicatedLoginAndLogoutTest {
 
         replica1 = new CentralDogmaBuilder(tempDir.newFolder())
                 .port(port1, SessionProtocol.HTTP)
-                .authenticationProviderFactory(factory)
+                .authProviderFactory(factory)
                 .webAppEnabled(true)
                 .mirroringEnabled(false)
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
@@ -105,7 +105,7 @@ public class ReplicatedLoginAndLogoutTest {
 
         replica2 = new CentralDogmaBuilder(tempDir.newFolder())
                 .port(port2, SessionProtocol.HTTP)
-                .authenticationProviderFactory(factory)
+                .authProviderFactory(factory)
                 .webAppEnabled(true)
                 .mirroringEnabled(false)
                 .gracefulShutdownTimeout(new GracefulShutdownTimeout(0, 0))
