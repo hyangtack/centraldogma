@@ -21,27 +21,25 @@ import static com.linecorp.centraldogma.testing.internal.authentication.TestAuth
 import static java.util.Objects.requireNonNull;
 
 import java.time.Duration;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.collect.ImmutableList;
 
 import com.linecorp.armeria.common.AggregatedHttpMessage;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.common.MediaType;
-import com.linecorp.armeria.server.PathMapping;
+import com.linecorp.armeria.server.HttpService;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.ServiceWithPathMappings;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
 import com.linecorp.armeria.server.auth.Authorizer;
 import com.linecorp.armeria.server.auth.BasicToken;
-import com.linecorp.armeria.server.auth.HttpAuthServiceBuilder;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
@@ -68,23 +66,19 @@ public class TestAuthenticationProvider implements AuthenticationProvider {
         logoutSessionPropagator = parameters.logoutSessionPropagator();
     }
 
+    @Nullable
     @Override
-    public Function<Service<HttpRequest, HttpResponse>,
-            Service<HttpRequest, HttpResponse>> newAuthenticationDecorator() {
-        return delegate -> new HttpAuthServiceBuilder().add(authorizer).build(delegate);
+    public Service<HttpRequest, HttpResponse> loginApiService() {
+        return new LoginService();
     }
 
+    @Nullable
     @Override
-    public Iterable<ServiceWithPathMappings<HttpRequest, HttpResponse>> newAuthenticationServices() {
-        return ImmutableList.of(new LoginService(), new LogoutService());
+    public Service<HttpRequest, HttpResponse> logoutApiService() {
+        return new LogoutService();
     }
 
-    class LoginService implements ServiceWithPathMappings<HttpRequest, HttpResponse> {
-        @Override
-        public Set<PathMapping> pathMappings() {
-            return AuthenticationProvider.loginServicePathMappings();
-        }
-
+    class LoginService implements HttpService {
         @Override
         public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
             return HttpResponse.from(CompletableFuture.supplyAsync(() -> {
@@ -120,12 +114,7 @@ public class TestAuthenticationProvider implements AuthenticationProvider {
         }
     }
 
-    class LogoutService implements ServiceWithPathMappings<HttpRequest, HttpResponse> {
-        @Override
-        public Set<PathMapping> pathMappings() {
-            return AuthenticationProvider.logoutServicePathMappings();
-        }
-
+    class LogoutService implements HttpService {
         @Override
         public HttpResponse serve(ServiceRequestContext ctx, HttpRequest req) throws Exception {
             return HttpResponse.from(CompletableFuture.supplyAsync(() -> {

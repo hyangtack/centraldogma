@@ -186,7 +186,7 @@ public class ReplicatedLoginAndLogoutTest {
     @Test
     public void incorrectLogout() throws Exception {
         final int baselineReplicationLogCount = replicationLogCount();
-        assertThat(logout(client1, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.OK);
+        assertThat(logout(client1, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
 
         // Ensure that a failed logout attempt does not produce any replication logs.
         assertThat(replicationLogCount()).isEqualTo(baselineReplicationLogCount);

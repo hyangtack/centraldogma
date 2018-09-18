@@ -18,7 +18,6 @@ package com.linecorp.centraldogma.server.auth.shiro;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -30,42 +29,28 @@ import org.apache.shiro.util.ThreadContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.benmanes.caffeine.cache.Cache;
-
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.AbstractHttpService;
-import com.linecorp.armeria.server.PathMapping;
 import com.linecorp.armeria.server.ServiceRequestContext;
-import com.linecorp.armeria.server.ServiceWithPathMappings;
 import com.linecorp.armeria.server.auth.AuthTokenExtractors;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
-import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
 import com.linecorp.centraldogma.server.internal.api.HttpApiUtil;
 
 /**
  * A service to handle a logout request to Central Dogma Web admin service.
  */
-final class LogoutService extends AbstractHttpService
-        implements ServiceWithPathMappings<HttpRequest, HttpResponse> {
+final class LogoutService extends AbstractHttpService {
 
     private static final Logger logger = LoggerFactory.getLogger(LogoutService.class);
 
     private final SecurityManager securityManager;
-    private final Cache<String, AccessToken> cache;
     private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
 
-    LogoutService(SecurityManager securityManager, Cache<String, AccessToken> cache,
+    LogoutService(SecurityManager securityManager,
                   Function<String, CompletableFuture<Void>> logoutSessionPropagator) {
         this.securityManager = requireNonNull(securityManager, "securityManager");
-        this.cache = requireNonNull(cache, "cache");
         this.logoutSessionPropagator = requireNonNull(logoutSessionPropagator, "logoutSessionPropagator");
-    }
-
-    @Override
-    public Set<PathMapping> pathMappings() {
-        return AuthenticationProvider.logoutServicePathMappings();
     }
 
     @Override
@@ -92,9 +77,6 @@ final class LogoutService extends AbstractHttpService
                                // Get the principal before logging out because otherwise it will be cleared out.
                                final String username = (String) currentUser.getPrincipal();
                                currentUser.logout();
-
-                               // Invalidate the session from access token cache.
-                               cache.invalidate(username);
                            }
                        } catch (Throwable t) {
                            logger.warn("{} Failed to log out: {}", ctx, sessionId, t);

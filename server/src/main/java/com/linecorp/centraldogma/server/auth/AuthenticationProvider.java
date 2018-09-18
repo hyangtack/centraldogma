@@ -19,12 +19,17 @@ import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V
 import static com.linecorp.centraldogma.internal.api.v1.HttpApiV1Constants.API_V1_PATH_PREFIX;
 
 import java.util.Set;
-import java.util.function.Function;
 
+import javax.annotation.Nullable;
+
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
+import com.linecorp.armeria.common.HttpHeaderNames;
+import com.linecorp.armeria.common.HttpHeaders;
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
+import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.armeria.server.PathMapping;
 import com.linecorp.armeria.server.Service;
 import com.linecorp.armeria.server.ServiceWithPathMappings;
@@ -35,31 +40,97 @@ import com.linecorp.armeria.server.ServiceWithPathMappings;
 public interface AuthenticationProvider {
 
     /**
-     * Returns the set of {@link PathMapping}s which handles a login request. It is necessary only if
+     * A login page path for the web console. If a user, who does not log into the web console yet,
+     * opens the web console, the web browser would bring the user to the login page.
+     */
+    String LOGIN_PATH = "/link/auth/login";
+
+    /**
+     * A logout page path for the web console. If a user clicks the logout button on the navigation bar,
+     * the web browser would bring the user to the logout page.
+     */
+    String LOGOUT_PATH = "/link/auth/logout";
+
+    /**
+     * A base path of the built-in web app.
+     */
+    String BUILTIN_WEB_BASE_PATH = "/web/auth";
+
+    /**
+     * A path which provides a built-in HTML login form to a user.
+     */
+    String BUILTIN_WEB_LOGIN_PATH = BUILTIN_WEB_BASE_PATH + "/login";
+
+    /**
+     * A path which provides a built-in HTML logout page to a user.
+     */
+    String BUILTIN_WEB_LOGOUT_PATH = BUILTIN_WEB_BASE_PATH + "/logout";
+
+    /**
+     * A set of {@link PathMapping}s which handles a login request. It is necessary only if
      * an authentication protocol requires a login feature provided by the server.
      */
-    static Set<PathMapping> loginServicePathMappings() {
-        return ImmutableSet.of(PathMapping.ofExact(API_V0_PATH_PREFIX + "authenticate"),
-                               PathMapping.ofExact(API_V1_PATH_PREFIX + "login"));
-    }
+    Set<PathMapping> LOGIN_API_PATH_MAPPINGS =
+            ImmutableSet.of(PathMapping.ofExact(API_V0_PATH_PREFIX + "authenticate"),
+                            PathMapping.ofExact(API_V1_PATH_PREFIX + "login"));
 
     /**
-     * Returns the set of {@link PathMapping}s which handles a logout request. It is necessary only if
+     * A set of {@link PathMapping}s which handles a logout request. It is necessary only if
      * an authentication protocol requires a logout feature provided by the server.
      */
-    static Set<PathMapping> logoutServicePathMappings() {
-        return ImmutableSet.of(PathMapping.ofExact(API_V0_PATH_PREFIX + "logout"),
-                               PathMapping.ofExact(API_V1_PATH_PREFIX + "logout"));
+    Set<PathMapping> LOGOUT_API_PATH_MAPPINGS =
+            ImmutableSet.of(PathMapping.ofExact(API_V0_PATH_PREFIX + "logout"),
+                            PathMapping.ofExact(API_V1_PATH_PREFIX + "logout"));
+
+    /**
+     * Returns a {@link Service} which handles a login request from a web browser. By default,
+     * the browser would bring a user to the built-in web login page served on {@value BUILTIN_WEB_LOGIN_PATH}.
+     */
+    default Service<HttpRequest, HttpResponse> webLoginService() {
+        // Redirect to the default page: /link/auth/login -> /web/auth/login
+        return (ctx, req) -> HttpResponse.of(
+                HttpHeaders.of(HttpStatus.MOVED_PERMANENTLY)
+                           .set(HttpHeaderNames.LOCATION, BUILTIN_WEB_LOGIN_PATH));
     }
 
     /**
-     * Creates a decorator which initiates the authentication if a request is not authenticated.
+     * Returns a {@link Service} which handles a logout request from a web browser. By default,
+     * the browser would bring a user to the built-in web logout page served on
+     * {@value BUILTIN_WEB_LOGOUT_PATH}.
      */
-    Function<Service<HttpRequest, HttpResponse>,
-            Service<HttpRequest, HttpResponse>> newAuthenticationDecorator();
+    default Service<HttpRequest, HttpResponse> webLogoutService() {
+        // Redirect to the default page: /link/auth/logout -> /web/auth/logout
+        return (ctx, req) -> HttpResponse.of(
+                HttpHeaders.of(HttpStatus.MOVED_PERMANENTLY)
+                           .set(HttpHeaderNames.LOCATION, BUILTIN_WEB_LOGOUT_PATH));
+    }
 
     /**
-     * Creates a {@link Service} which handles messages for the authentication.
+     * Returns a {@link Service} which handles a login request sent from the built-in web login page or
+     * somewhere implemented by a {@link AuthenticationProvider}. This service would be added to the server
+     * with {@link #LOGIN_API_PATH_MAPPINGS} only if it is provided.
      */
-    Iterable<ServiceWithPathMappings<HttpRequest, HttpResponse>> newAuthenticationServices();
+    @Nullable
+    default Service<HttpRequest, HttpResponse> loginApiService() {
+        return null;
+    }
+
+    /**
+     * Returns a {@link Service} which handles a logout request sent from the built-in web logout page or
+     * somewhere implemented by a {@link AuthenticationProvider}. This service would be added to the server
+     * with {@link #LOGOUT_API_PATH_MAPPINGS}. If it is not provided, a default service would be added
+     * because the web console provides a logout button on the navigation bar by default.
+     */
+    @Nullable
+    default Service<HttpRequest, HttpResponse> logoutApiService() {
+        return null;
+    }
+
+    /**
+     * Returns additional {@link Service}s which are required for working this {@link AuthenticationProvider}
+     * well.
+     */
+    default Iterable<ServiceWithPathMappings<HttpRequest, HttpResponse>> moreServices() {
+        return ImmutableList.of();
+    }
 }

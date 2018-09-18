@@ -76,5 +76,19 @@ clientDependencies {
     }
 }
 
+task copyWebApp(type:Copy){
+    dependsOn ':server-auth:webapp:buildWebApp'
+
+    def dst = "${project.ext.genSrcDir}/main/resources/auth-webapp";
+
+    from project(':server-auth:webapp').file('build')
+    into dst
+
+    doFirst {
+        delete(dst)
+    }
+}
+
 tasks.clean.dependsOn(tasks.clientClean)
-tasks.processResources.dependsOn(tasks.clientInstall)
+tasks.processResources.dependsOn(tasks.clientInstall, tasks.copyWebApp)
+

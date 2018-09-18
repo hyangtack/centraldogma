@@ -22,6 +22,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import javax.annotation.Nullable;
+
 import org.apache.shiro.config.Ini;
 import org.apache.shiro.config.IniSecurityManagerFactory;
 import org.apache.shiro.mgt.DefaultSecurityManager;
@@ -29,17 +31,10 @@ import org.apache.shiro.mgt.SecurityManager;
 import org.apache.shiro.session.mgt.DefaultSessionManager;
 import org.apache.shiro.util.Factory;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.google.common.collect.ImmutableList;
-
 import com.linecorp.armeria.common.HttpRequest;
 import com.linecorp.armeria.common.HttpResponse;
 import com.linecorp.armeria.server.Service;
-import com.linecorp.armeria.server.ServiceWithPathMappings;
 import com.linecorp.armeria.server.auth.Authorizer;
-import com.linecorp.armeria.server.auth.HttpAuthServiceBuilder;
-import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.auth.AuthenticatedSession;
 import com.linecorp.centraldogma.server.auth.AuthenticationConfig;
 import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
@@ -49,12 +44,8 @@ import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
  */
 public final class ShiroAuthenticationProvider implements AuthenticationProvider {
 
-    private final AuthenticationConfig authConfig;
-    private final Ini config;
-    private final Authorizer<HttpRequest> authorizer;
-    private final Supplier<String> sessionIdGenerator;
-    private final Function<AuthenticatedSession, CompletableFuture<Void>> loginSessionPropagator;
-    private final Function<String, CompletableFuture<Void>> logoutSessionPropagator;
+    private final Service<HttpRequest, HttpResponse> loginApiService;
+    private final Service<HttpRequest, HttpResponse> logoutApiService;
 
     ShiroAuthenticationProvider(AuthenticationConfig authConfig,
                                 Ini config,
@@ -62,22 +53,22 @@ public final class ShiroAuthenticationProvider implements AuthenticationProvider
                                 Supplier<String> sessionIdGenerator,
                                 Function<AuthenticatedSession, CompletableFuture<Void>> loginSessionPropagator,
                                 Function<String, CompletableFuture<Void>> logoutSessionPropagator) {
-        this.authConfig = requireNonNull(authConfig, "authConfig");
-        this.config = requireNonNull(config, "config");
-        this.authorizer = requireNonNull(authorizer, "authorizer");
-        this.sessionIdGenerator = requireNonNull(sessionIdGenerator, "sessionIdGenerator");
-        this.loginSessionPropagator = requireNonNull(loginSessionPropagator, "loginSessionPropagator");
-        this.logoutSessionPropagator = requireNonNull(logoutSessionPropagator, "logoutSessionPropagator");
+        requireNonNull(authConfig, "authConfig");
+        requireNonNull(config, "config");
+        requireNonNull(authorizer, "authorizer");
+        requireNonNull(sessionIdGenerator, "sessionIdGenerator");
+        requireNonNull(loginSessionPropagator, "loginSessionPropagator");
+        requireNonNull(logoutSessionPropagator, "logoutSessionPropagator");
+
+        final SecurityManager securityManager = createSecurityManager(config, sessionIdGenerator);
+        final Duration sessionValidDuration = Duration.ofMillis(authConfig.sessionTimeoutMillis());
+
+        loginApiService = new LoginService(securityManager, authConfig.loginNameNormalizer(),
+                                           loginSessionPropagator, sessionValidDuration);
+        logoutApiService = new LogoutService(securityManager, logoutSessionPropagator);
     }
 
-    @Override
-    public Function<Service<HttpRequest, HttpResponse>,
-            Service<HttpRequest, HttpResponse>> newAuthenticationDecorator() {
-        return delegate -> new HttpAuthServiceBuilder().add(authorizer).build(delegate);
-    }
-
-    @Override
-    public Iterable<ServiceWithPathMappings<HttpRequest, HttpResponse>> newAuthenticationServices() {
+    private SecurityManager createSecurityManager(Ini config, Supplier<String> sessionIdGenerator) {
         final Factory<SecurityManager> factory = new IniSecurityManagerFactory(config) {
             @Override
             protected SecurityManager createDefaultInstance() {
@@ -94,13 +85,18 @@ public final class ShiroAuthenticationProvider implements AuthenticationProvider
                 return securityManager;
             }
         };
+        return factory.getInstance();
+    }
 
-        final SecurityManager securityManager = factory.getInstance();
-        final Cache<String, AccessToken> sessionCache = Caffeine.from(authConfig.sessionCacheSpec()).build();
-        final Duration sessionValidDuration = Duration.ofMillis(authConfig.sessionTimeoutMillis());
+    @Nullable
+    @Override
+    public Service<HttpRequest, HttpResponse> loginApiService() {
+        return loginApiService;
+    }
 
-        return ImmutableList.of(new LoginService(securityManager, authConfig.loginNameNormalizer(),
-                                                 sessionCache, loginSessionPropagator, sessionValidDuration),
-                                new LogoutService(securityManager, sessionCache, logoutSessionPropagator));
+    @Nullable
+    @Override
+    public Service<HttpRequest, HttpResponse> logoutApiService() {
+        return logoutApiService;
     }
 }

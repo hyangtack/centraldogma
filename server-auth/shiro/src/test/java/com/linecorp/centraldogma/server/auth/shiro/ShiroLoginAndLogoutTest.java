@@ -26,27 +26,22 @@ import static com.linecorp.centraldogma.testing.internal.authentication.TestAuth
 import static com.linecorp.centraldogma.testing.internal.authentication.TestAuthenticationMessageUtil.usersMe;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.concurrent.TimeUnit;
-
 import org.apache.shiro.config.Ini;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import com.linecorp.armeria.client.HttpClient;
 import com.linecorp.armeria.common.AggregatedHttpMessage;
+import com.linecorp.armeria.common.HttpHeaderNames;
 import com.linecorp.armeria.common.HttpStatus;
 import com.linecorp.centraldogma.internal.Jackson;
 import com.linecorp.centraldogma.internal.api.v1.AccessToken;
 import com.linecorp.centraldogma.server.CentralDogmaBuilder;
+import com.linecorp.centraldogma.server.auth.AuthenticationProvider;
 import com.linecorp.centraldogma.testing.CentralDogmaRule;
 
 public class ShiroLoginAndLogoutTest {
-
-    @ClassRule
-    public static TemporaryFolder folder = new TemporaryFolder();
 
     @Rule
     public final CentralDogmaRule rule = new CentralDogmaRule() {
@@ -88,17 +83,6 @@ public class ShiroLoginAndLogoutTest {
     }
 
     @Test
-    public void consecutiveLoginShouldResponseSameToken() throws Exception {
-        final AggregatedHttpMessage res1 = login(client, USERNAME, PASSWORD);
-        TimeUnit.MILLISECONDS.sleep(100); // Sleep a little bit to get a response with different expiresIn.
-        final AggregatedHttpMessage res2 = login(client, USERNAME, PASSWORD);
-        final AccessToken token1 = Jackson.readValue(res1.content().array(), AccessToken.class);
-        final AccessToken token2 = Jackson.readValue(res2.content().array(), AccessToken.class);
-        assertThat(token1.accessToken()).isEqualTo(token2.accessToken());
-        assertThat(token1.expiresIn()).isGreaterThan(token2.expiresIn());
-    }
-
-    @Test
     public void basicAuth() throws Exception {
         loginAndLogout(loginWithBasicAuth(client, USERNAME, PASSWORD));
     }
@@ -110,6 +94,20 @@ public class ShiroLoginAndLogoutTest {
 
     @Test
     public void incorrectLogout() throws Exception {
-        assertThat(logout(client, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.OK);
+        assertThat(logout(client, WRONG_SESSION_ID).status()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    public void shouldUseBuiltinWebPages() throws Exception {
+        AggregatedHttpMessage resp;
+        resp = client.get(AuthenticationProvider.LOGIN_PATH).aggregate().join();
+        assertThat(resp.status()).isEqualTo(HttpStatus.MOVED_PERMANENTLY);
+        assertThat(resp.headers().get(HttpHeaderNames.LOCATION))
+                .isEqualTo(AuthenticationProvider.BUILTIN_WEB_LOGIN_PATH);
+
+        resp = client.get(AuthenticationProvider.LOGOUT_PATH).aggregate().join();
+        assertThat(resp.status()).isEqualTo(HttpStatus.MOVED_PERMANENTLY);
+        assertThat(resp.headers().get(HttpHeaderNames.LOCATION))
+                .isEqualTo(AuthenticationProvider.BUILTIN_WEB_LOGOUT_PATH);
     }
 }
